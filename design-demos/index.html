@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Huashu Design Showcase — 3 Directions for Bible Commentary Journal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0F17;
+      --surface: #111622;
+      --border: rgba(255, 255, 255, 0.08);
+      --text-primary: #F8FAFC;
+      --text-secondary: #64748B;
+      --accent: #38BDF8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .header {
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .header-overline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .header-title {
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+
+    .header-desc {
+      font-size: 15px;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .nav-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .nav-tab {
+      padding: 10px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .nav-tab:hover, .nav-tab.active {
+      background: rgba(56, 189, 248, 0.1);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .frame-container {
+      width: 100%;
+      height: 720px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+      background: #0B0F17;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-overline">Huashu Design · Triad Showcase</div>
+      <h1 class="header-title">Card Alternative Explorations</h1>
+      <p class="header-desc">
+        Three distinct, aesthetic and concise interpretations inspired by the <code>example.png</code> design language, with interactive Dark and Light modes.
+      </p>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="loadDemo('direction1-monolithic-index.html', this)">
+        01 · Monolithic Index (Table of Contents)
+      </button>
+      <button class="nav-tab" onclick="loadDemo('direction2-studio-splitview.html', this)">
+        02 · Studio Split-View (Master-Detail)
+      </button>
+      <button class="nav-tab" onclick="loadDemo('direction3-compact-strip-rail.html', this)">
+        03 · Compact Strip Rail (Edge-to-Edge)
+      </button>
+    </div>
+
+    <div class="frame-container">
+      <iframe id="demoFrame" src="direction1-monolithic-index.html"></iframe>
+    </div>
+  </div>
+
+  <script>
+    function loadDemo(url, btn) {
+      document.getElementById('demoFrame').src = url;
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

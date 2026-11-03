@@ -1,0 +1,56 @@
+# Maven & Quarkus build outputs
+target/
+.quarkus/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Environment variables & application secrets (keep templates if created)
+.env
+.env.*
+!.env.example
+!.env.template
+application-local.properties
+application-local.yml
+application-local.yaml
+application-secret*.properties
+application-secret*.yml
+application-secret*.yaml
+src/main/resources/application-local.*
+src/main/resources/application-secret*.*
+
+# Certificates, keys & credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+secrets/
+.secrets/
+credentials*.json
+
+# Logs & crash dumps
+*.log
+hs_err_pid*
+replay_pid*
+
+# IDE & OS files
+.idea/
+*.iws
+*.iml
+*.ipr
+.classpath
+.project
+.settings/
+.vscode/
+.DS_Store
+.factorypath

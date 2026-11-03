@@ -1,0 +1,36 @@
+# OS & Editor files
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.sw?
+
+# AI Agent / local tooling configs
+.agents/
+
+# Global environment & secret files
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+.secrets/
+
+# Frontend ignores (in addition to frontend/.gitignore)
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+
+# Backend ignores (in addition to backend/.gitignore)
+backend/target/
+backend/.quarkus/
+
+# Logs
+*.log

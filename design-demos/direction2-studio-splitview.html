@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Direction 2 — Studio Split-View (Master-Detail Shelf)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0F17;
+      --surface: #111622;
+      --surface-active: #171E2E;
+      --surface-subtle: rgba(255, 255, 255, 0.02);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --text-primary: #F8FAFC;
+      --text-secondary: #64748B;
+      --text-muted: #475569;
+      --accent: #5C82A6;
+      --accent-bright: #38BDF8;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --tag-nt-text: #38BDF8;
+      --tag-ot-text: #F59E0B;
+    }
+
+    [data-theme="light"] {
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --surface-active: #F1F5F9;
+      --surface-subtle: #F8FAFC;
+      --border: #E2E8F0;
+      --border-subtle: #EDF2F7;
+      --text-primary: #0F172A;
+      --text-secondary: #64748B;
+      --text-muted: #94A3B8;
+      --accent: #2563EB;
+      --accent-bright: #0284C7;
+      --accent-glow: rgba(2, 132, 199, 0.12);
+      --tag-nt-text: #0284C7;
+      --tag-ot-text: #D97706;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 56px;
+    }
+
+    .brand-mark {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .theme-toggle {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 7px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-toggle:hover {
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
+    }
+
+    .hero {
+      margin-bottom: 48px;
+    }
+
+    .hero-overline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .hero-title {
+      font-size: 56px;
+      font-weight: 300;
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+    }
+
+    .hero-title span.accent {
+      color: var(--accent);
+      font-weight: 400;
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      font-weight: 400;
+      max-width: 640px;
+    }
+
+    /* Master-Detail Split Container */
+    .split-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Left Master List */
+    .master-pane {
+      border-right: 1px solid var(--border);
+      background: var(--surface-subtle);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pane-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .master-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .book-item {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .book-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .book-item.active {
+      background: var(--surface-active);
+      border-left: 3px solid var(--accent-bright);
+    }
+
+    .item-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .item-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Right Detail Preview Pane */
+    .detail-pane {
+      padding: 36px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .detail-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-bright);
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    .detail-name {
+      font-size: 36px;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    .detail-desc {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+    }
+
+    .pericope-preview-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+
+    .preview-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-subtle);
+      font-size: 13px;
+    }
+
+    .preview-ref {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-bright);
+      font-weight: 500;
+    }
+
+    .preview-title {
+      color: var(--text-primary);
+      margin-left: 12px;
+      flex-grow: 1;
+    }
+
+    .btn-open {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      background: var(--text-primary);
+      color: var(--bg);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-open:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .direction-badge {
+      display: inline-block;
+      margin-top: 40px;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <div class="brand-mark">Commentary Journal · v2.0</div>
+      <button class="theme-toggle" onclick="toggleTheme()">
+        <span id="themeIcon">☀️</span> <span id="themeLabel">Light Mode</span>
+      </button>
+    </div>
+
+    <div class="hero">
+      <div class="hero-overline">Master-Detail Architecture</div>
+      <h1 class="hero-title">
+        Study the Word.<br />
+        <span class="accent">Written by hand.</span>
+      </h1>
+      <p class="hero-subtitle">
+        Direct split-view studio workstation — browse canonical volumes on the left, inspect curated pericopes on the right.
+      </p>
+    </div>
+
+    <div class="split-layout">
+      <!-- Master List -->
+      <div class="master-pane">
+        <div class="pane-header">Canônico · 5 Volumes</div>
+        <div class="master-list">
+          <div class="book-item active" onclick="selectBook(0)">
+            <span class="item-title">Marcos</span>
+            <span class="item-count">16 seções</span>
+          </div>
+          <div class="book-item" onclick="selectBook(1)">
+            <span class="item-title">João</span>
+            <span class="item-count">21 seções</span>
+          </div>
+          <div class="book-item" onclick="selectBook(2)">
+            <span class="item-title">Salmos</span>
+            <span class="item-count">150 seções</span>
+          </div>
+          <div class="book-item" onclick="selectBook(3)">
+            <span class="item-title">Romanos</span>
+            <span class="item-count">16 seções</span>
+          </div>
+          <div class="book-item" onclick="selectBook(4)">
+            <span class="item-title">Gênesis</span>
+            <span class="item-count">50 seções</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Preview -->
+      <div class="detail-pane" id="detailPane">
+        <div>
+          <span class="detail-tag" id="detailTag">Novo Testamento</span>
+          <h2 class="detail-name" id="detailName">Evangelho de Marcos</h2>
+          <p class="detail-desc" id="detailDesc">
+            O ministério de Jesus com foco imediato em suas ações, milagres e ensinamentos transformadores para os discípulos.
+          </p>
+
+          <div class="pericope-preview-list" id="previewList">
+            <div class="preview-item">
+              <span class="preview-ref">Mc 1:1-8</span>
+              <span class="preview-title">O Início do Evangelho e a Voz no Deserto</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-ref">Mc 1:9-11</span>
+              <span class="preview-title">O Batismo de Jesus e o Espírito Santo</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-ref">Mc 1:12-13</span>
+              <span class="preview-title">A Tentação no Deserto</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-open">
+          <span>Abrir diário pareado</span>
+          <span>→</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="direction-badge">
+      Direction 2: Studio Split-View (Zero cards · Two-column master-detail · Direct inspection)
+    </div>
+  </div>
+
+  <script>
+    const books = [
+      {
+        name: "Evangelho de Marcos",
+        tag: "Novo Testamento",
+        desc: "O ministério de Jesus com foco imediato em suas ações, milagres e ensinamentos transformadores para os discípulos.",
+        pericopes: [
+          { ref: "Mc 1:1-8", title: "O Início do Evangelho e a Voz no Deserto" },
+          { ref: "Mc 1:9-11", title: "O Batismo de Jesus e o Espírito Santo" },
+          { ref: "Mc 1:12-13", title: "A Tentação no Deserto" }
+        ]
+      },
+      {
+        name: "Evangelho de João",
+        tag: "Novo Testamento",
+        desc: "O Verbo eterno que se fez carne e habitou entre nós, cheio de graça e de verdade, revelando a glória do Pai.",
+        pericopes: [
+          { ref: "Jo 1:1-18", title: "O Prólogo: O Verbo se Fez Carne" },
+          { ref: "Jo 1:19-28", title: "O Testemunho de João Batista" },
+          { ref: "Jo 1:29-34", title: "O Cordeiro de Deus" }
+        ]
+      },
+      {
+        name: "Livro de Salmos",
+        tag: "Antigo Testamento",
+        desc: "Cânticos poéticos, súplicas e louvores profundos que expressam a alma humana em constante diálogo com o Criador.",
+        pericopes: [
+          { ref: "Sl 1:1-6", title: "Os Dois Caminhos: O Justo e o Ímpio" },
+          { ref: "Sl 23:1-6", title: "O Senhor é o Meu Pastor" },
+          { ref: "Sl 121:1-8", title: "O Guarda de Israel" }
+        ]
+      },
+      {
+        name: "Epístola aos Romanos",
+        tag: "Novo Testamento",
+        desc: "A fundação teológica da graça, justificação pela fé em Cristo e a vida capacitada pelo Espírito Santo.",
+        pericopes: [
+          { ref: "Rm 1:1-7", title: "Saudação e Chamado Apostólico" },
+          { ref: "Rm 8:1-11", title: "A Vida no Espírito" },
+          { ref: "Rm 8:31-39", title: "Mais que Vencedores" }
+        ]
+      },
+      {
+        name: "Livro de Gênesis",
+        tag: "Antigo Testamento",
+        desc: "As origens do cosmos, da humanidade, da queda e o início da aliança abraâmica para abençoar todas as famílias da terra.",
+        pericopes: [
+          { ref: "Gn 1:1-2:3", title: "A Criação dos Céus e da Terra" },
+          { ref: "Gn 12:1-9", title: "O Chamado de Abrão" },
+          { ref: "Gn 28:10-22", title: "O Sonho de Jacó em Betel" }
+        ]
+      }
+    ];
+
+    function selectBook(index) {
+      document.querySelectorAll('.book-item').forEach((el, i) => {
+        el.classList.toggle('active', i === index);
+      });
+
+      const b = books[index];
+      document.getElementById('detailTag').textContent = b.tag;
+      document.getElementById('detailName').textContent = b.name;
+      document.getElementById('detailDesc').textContent = b.desc;
+
+      const previewList = document.getElementById('previewList');
+      previewList.innerHTML = b.pericopes.map(p => `
+        <div class="preview-item">
+          <span class="preview-ref">${p.ref}</span>
+          <span class="preview-title">${p.title}</span>
+        </div>
+      `).join('');
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.getElementById('themeIcon').textContent = next === 'dark' ? '☀️' : '🌙';
+      document.getElementById('themeLabel').textContent = next === 'dark' ? 'Light Mode' : 'Dark Mode';
+    }
+  </script>
+</body>
+</html>

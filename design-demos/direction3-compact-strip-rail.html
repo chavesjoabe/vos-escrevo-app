@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Direction 3 — Compact Strip Rail (Architectural Rows)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0F17;
+      --surface: #0E131F;
+      --surface-hover: #141B2B;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --text-primary: #F8FAFC;
+      --text-secondary: #64748B;
+      --text-muted: #475569;
+      --accent: #5C82A6;
+      --accent-bright: #38BDF8;
+      --nt-accent: #38BDF8;
+      --ot-accent: #F59E0B;
+    }
+
+    [data-theme="light"] {
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --surface-hover: #F1F5F9;
+      --border: #E2E8F0;
+      --border-subtle: #EDF2F7;
+      --text-primary: #0F172A;
+      --text-secondary: #64748B;
+      --text-muted: #94A3B8;
+      --accent: #2563EB;
+      --accent-bright: #0284C7;
+      --nt-accent: #0284C7;
+      --ot-accent: #D97706;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 56px;
+    }
+
+    .brand-mark {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .theme-toggle {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 7px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-toggle:hover {
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
+    }
+
+    .hero {
+      margin-bottom: 56px;
+    }
+
+    .hero-overline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .hero-title {
+      font-size: 56px;
+      font-weight: 300;
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+    }
+
+    .hero-title span.accent {
+      color: var(--accent);
+      font-weight: 400;
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      font-weight: 400;
+      max-width: 640px;
+    }
+
+    /* Architectural Strip Rail Container */
+    .rail-frame {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.4);
+    }
+
+    .strip-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 54px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .strip-row:last-child {
+      border-bottom: none;
+    }
+
+    .strip-row:hover {
+      background: var(--surface-hover);
+    }
+
+    .strip-row:hover .strip-accent-bar {
+      opacity: 1;
+      height: 100%;
+    }
+
+    .strip-row:hover .strip-title {
+      color: var(--accent-bright);
+    }
+
+    .strip-row:hover .strip-action {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .strip-accent-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      opacity: 0.4;
+      transition: all 0.2s ease;
+    }
+
+    .strip-accent-bar.nt {
+      background: var(--nt-accent);
+    }
+
+    .strip-accent-bar.ot {
+      background: var(--ot-accent);
+    }
+
+    .strip-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .strip-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      width: 28px;
+    }
+
+    .strip-title {
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      transition: color 0.15s ease;
+    }
+
+    .strip-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: 8px;
+    }
+
+    .strip-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .strip-sections {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .strip-action {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent-bright);
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: all 0.2s ease;
+    }
+
+    .direction-badge {
+      display: inline-block;
+      margin-top: 40px;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <div class="brand-mark">Commentary Journal · v2.0</div>
+      <button class="theme-toggle" onclick="toggleTheme()">
+        <span id="themeIcon">☀️</span> <span id="themeLabel">Light Mode</span>
+      </button>
+    </div>
+
+    <div class="hero">
+      <div class="hero-overline">Architectural Compact Rail</div>
+      <h1 class="hero-title">
+        Study the Word.<br />
+        <span class="accent">Written by hand.</span>
+      </h1>
+      <p class="hero-subtitle">
+        High-density, razor-thin strip rows with subtle luminous indicators — zero card bloat, instant access.
+      </p>
+    </div>
+
+    <div class="rail-frame">
+      <div class="strip-row">
+        <div class="strip-accent-bar nt"></div>
+        <div class="strip-left">
+          <span class="strip-code">MC</span>
+          <span class="strip-title">Evangelho segundo Marcos</span>
+          <span class="strip-pill">· NT</span>
+        </div>
+        <div class="strip-right">
+          <span class="strip-sections">16 seções</span>
+          <span class="strip-action">Abrir diário →</span>
+        </div>
+      </div>
+
+      <div class="strip-row">
+        <div class="strip-accent-bar nt"></div>
+        <div class="strip-left">
+          <span class="strip-code">JO</span>
+          <span class="strip-title">Evangelho segundo João</span>
+          <span class="strip-pill">· NT</span>
+        </div>
+        <div class="strip-right">
+          <span class="strip-sections">21 seções</span>
+          <span class="strip-action">Abrir diário →</span>
+        </div>
+      </div>
+
+      <div class="strip-row">
+        <div class="strip-accent-bar ot"></div>
+        <div class="strip-left">
+          <span class="strip-code">SL</span>
+          <span class="strip-title">Livro de Salmos</span>
+          <span class="strip-pill">· AT</span>
+        </div>
+        <div class="strip-right">
+          <span class="strip-sections">150 seções</span>
+          <span class="strip-action">Abrir diário →</span>
+        </div>
+      </div>
+
+      <div class="strip-row">
+        <div class="strip-accent-bar nt"></div>
+        <div class="strip-left">
+          <span class="strip-code">RM</span>
+          <span class="strip-title">Epístola aos Romanos</span>
+          <span class="strip-pill">· NT</span>
+        </div>
+        <div class="strip-right">
+          <span class="strip-sections">16 seções</span>
+          <span class="strip-action">Abrir diário →</span>
+        </div>
+      </div>
+
+      <div class="strip-row">
+        <div class="strip-accent-bar ot"></div>
+        <div class="strip-left">
+          <span class="strip-code">GN</span>
+          <span class="strip-title">Livro de Gênesis</span>
+          <span class="strip-pill">· AT</span>
+        </div>
+        <div class="strip-right">
+          <span class="strip-sections">50 seções</span>
+          <span class="strip-action">Abrir diário →</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="direction-badge">
+      Direction 3: Compact Strip Rail (Zero cards · Architectural single-frame rows · 70% height reduction)
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.getElementById('themeIcon').textContent = next === 'dark' ? '☀️' : '🌙';
+      document.getElementById('themeLabel').textContent = next === 'dark' ? 'Light Mode' : 'Dark Mode';
+    }
+  </script>
+</body>
+</html>

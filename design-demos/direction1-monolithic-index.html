@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Direction 1 — Monolithic Index (Table of Contents)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0F17;
+      --bg-surface: rgba(255, 255, 255, 0.02);
+      --bg-hover: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --text-primary: #F8FAFC;
+      --text-secondary: #64748B;
+      --text-muted: #475569;
+      --accent: #5C82A6;
+      --accent-bright: #38BDF8;
+      --tag-nt-bg: rgba(56, 189, 248, 0.1);
+      --tag-nt-text: #38BDF8;
+      --tag-ot-bg: rgba(245, 158, 11, 0.1);
+      --tag-ot-text: #F59E0B;
+      --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] {
+      --bg: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-hover: #F1F5F9;
+      --border: #E2E8F0;
+      --border-subtle: #EDF2F7;
+      --text-primary: #0F172A;
+      --text-secondary: #64748B;
+      --text-muted: #94A3B8;
+      --accent: #2563EB;
+      --accent-bright: #0284C7;
+      --tag-nt-bg: rgba(2, 132, 199, 0.08);
+      --tag-nt-text: #0284C7;
+      --tag-ot-bg: rgba(217, 119, 6, 0.08);
+      --tag-ot-text: #D97706;
+      --shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    /* Top Navigation Bar with Mode Switcher */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 56px;
+    }
+
+    .brand-mark {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .theme-toggle {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 7px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-toggle:hover {
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
+    }
+
+    /* Masthead Hero (Exact example.png typography & layout) */
+    .hero {
+      margin-bottom: 56px;
+    }
+
+    .hero-overline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .hero-title {
+      font-size: 56px;
+      font-weight: 300;
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+    }
+
+    .hero-title span.accent {
+      color: var(--accent);
+      font-weight: 400;
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      font-weight: 400;
+      max-width: 640px;
+    }
+
+    /* Monolithic Index List (No Cards, Pure Aesthetic Content) */
+    .index-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 16px 14px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .index-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .index-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      border-radius: 8px;
+      margin: 2px 0;
+    }
+
+    .index-row:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .index-row:hover .row-title {
+      color: var(--accent-bright);
+      transform: translateX(4px);
+    }
+
+    .index-row:hover .row-arrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .row-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .row-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      width: 24px;
+    }
+
+    .row-title {
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: -0.015em;
+      color: var(--text-primary);
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+
+    .row-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-left: 12px;
+      font-weight: 400;
+    }
+
+    .row-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .pill-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .pill-tag.nt {
+      background-color: var(--tag-nt-bg);
+      color: var(--tag-nt-text);
+    }
+
+    .pill-tag.ot {
+      background-color: var(--tag-ot-bg);
+      color: var(--tag-ot-text);
+    }
+
+    .row-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+      min-width: 85px;
+      text-align: right;
+    }
+
+    .row-arrow {
+      opacity: 0;
+      transform: translateX(-6px);
+      transition: all 0.2s ease;
+      color: var(--accent-bright);
+      font-size: 14px;
+    }
+
+    .direction-badge {
+      display: inline-block;
+      margin-top: 40px;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <div class="brand-mark">Commentary Journal · v2.0</div>
+      <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">
+        <span id="themeIcon">☀️</span> <span id="themeLabel">Light Mode</span>
+      </button>
+    </div>
+
+    <div class="hero">
+      <div class="hero-overline">Bible Commentary & Reflections</div>
+      <h1 class="hero-title">
+        Study the Word.<br />
+        <span class="accent">Written by hand.</span>
+      </h1>
+      <p class="hero-subtitle">
+        A quiet, high-precision sanctuary for paired Scripture reading and Apple Pencil reflections — ready before you open the page.
+      </p>
+    </div>
+
+    <div class="index-header">
+      <div>Volume & Passage</div>
+      <div>Testament · Pericopes</div>
+    </div>
+
+    <div class="index-list">
+      <div class="index-row">
+        <div class="row-left">
+          <span class="row-num">01</span>
+          <span class="row-title">Marcos</span>
+          <span class="row-desc">O ministério de Jesus com foco em suas ações e ensinamentos.</span>
+        </div>
+        <div class="row-right">
+          <span class="pill-tag nt">Novo Testamento</span>
+          <span class="row-meta">16 seções</span>
+          <span class="row-arrow">→</span>
+        </div>
+      </div>
+
+      <div class="index-row">
+        <div class="row-left">
+          <span class="row-num">02</span>
+          <span class="row-title">João</span>
+          <span class="row-desc">O Verbo que se fez carne e habitou entre nós, cheio de graça e verdade.</span>
+        </div>
+        <div class="row-right">
+          <span class="pill-tag nt">Novo Testamento</span>
+          <span class="row-meta">21 seções</span>
+          <span class="row-arrow">→</span>
+        </div>
+      </div>
+
+      <div class="index-row">
+        <div class="row-left">
+          <span class="row-num">03</span>
+          <span class="row-title">Salmos</span>
+          <span class="row-desc">Cânticos, orações e louvores poéticos que expressam a alma humana diante de Deus.</span>
+        </div>
+        <div class="row-right">
+          <span class="pill-tag ot">Antigo Testamento</span>
+          <span class="row-meta">150 seções</span>
+          <span class="row-arrow">→</span>
+        </div>
+      </div>
+
+      <div class="index-row">
+        <div class="row-left">
+          <span class="row-num">04</span>
+          <span class="row-title">Romanos</span>
+          <span class="row-desc">A teologia da justificação pela fé e a vida no Espírito Santo.</span>
+        </div>
+        <div class="row-right">
+          <span class="pill-tag nt">Novo Testamento</span>
+          <span class="row-meta">16 seções</span>
+          <span class="row-arrow">→</span>
+        </div>
+      </div>
+
+      <div class="index-row">
+        <div class="row-left">
+          <span class="row-num">05</span>
+          <span class="row-title">Gênesis</span>
+          <span class="row-desc">As origens do cosmos, da humanidade, da queda e a promessa da aliança patriarcal.</span>
+        </div>
+        <div class="row-right">
+          <span class="pill-tag ot">Antigo Testamento</span>
+          <span class="row-meta">50 seções</span>
+          <span class="row-arrow">→</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="direction-badge">
+      Direction 1: Monolithic Index (Zero cards · 100% typographic content · Hairline dividers)
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.getElementById('themeIcon').textContent = next === 'dark' ? '☀️' : '🌙';
+      document.getElementById('themeLabel').textContent = next === 'dark' ? 'Light Mode' : 'Dark Mode';
+    }
+  </script>
+</body>
+</html>
