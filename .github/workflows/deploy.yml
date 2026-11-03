@@ -1,0 +1,316 @@
+name: Deploy backend application
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Grant execute permission for mvnw
+        run: chmod +x backend/mvnw
+
+      - name: Build backend application
+        working-directory: backend
+        run: |
+          ./mvnw clean package -DskipTests
+
+  tests:
+    name: Tests
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Grant execute permission for mvnw
+        run: chmod +x backend/mvnw
+
+      - name: Unit tests
+        working-directory: backend
+        run: |
+          ./mvnw test
+
+  deploy-preparation:
+    name: Deploy preparation
+    environment: PROD
+    needs: tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create .env file for deployment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
+          MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+          AUTH_TOKEN_SECRET: ${{ secrets.AUTH_TOKEN_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          BIBLE_SEED_ENABLED: ${{ secrets.BIBLE_SEED_ENABLED }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          PORT: ${{ secrets.PORT }}
+          QUARKUS_HTTP_PORT: ${{ secrets.QUARKUS_HTTP_PORT }}
+        run: |
+          touch .env
+          if [ -n "$DATABASE_URL" ]; then
+            echo "DATABASE_URL=$DATABASE_URL" >> .env
+          elif [ -n "$MONGODB_CONNECTION_STRING" ]; then
+            echo "DATABASE_URL=$MONGODB_CONNECTION_STRING" >> .env
+          fi
+          if [ -n "$MONGODB_CONNECTION_STRING" ]; then echo "MONGODB_CONNECTION_STRING=$MONGODB_CONNECTION_STRING" >> .env; fi
+          if [ -n "$MONGODB_DATABASE" ]; then echo "MONGODB_DATABASE=$MONGODB_DATABASE" >> .env; fi
+          if [ -n "$AUTH_TOKEN_SECRET" ]; then
+            echo "AUTH_TOKEN_SECRET=$AUTH_TOKEN_SECRET" >> .env
+          elif [ -n "$JWT_SECRET" ]; then
+            echo "AUTH_TOKEN_SECRET=$JWT_SECRET" >> .env
+          fi
+          if [ -n "$JWT_SECRET" ]; then echo "JWT_SECRET=$JWT_SECRET" >> .env; fi
+          if [ -n "$BIBLE_SEED_ENABLED" ]; then echo "BIBLE_SEED_ENABLED=$BIBLE_SEED_ENABLED" >> .env; fi
+          if [ -n "$CORS_ORIGINS" ]; then echo "CORS_ORIGINS=$CORS_ORIGINS" >> .env; fi
+          echo "PORT=${PORT:-3000}" >> .env
+          echo "QUARKUS_HTTP_PORT=${QUARKUS_HTTP_PORT:-${PORT:-3000}}" >> .env
+          echo "Environment configuration prepared successfully."
+
+      - name: Verify SSH connection and stage environment to VPS
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_KEY: ${{ secrets.EC2_KEY }}
+        run: |
+          echo "$EC2_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          if ! ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST "echo 'SSH connection successful'"; then
+            echo "Failed to establish SSH connection"
+            rm -f private_key.pem
+            exit 1
+          fi
+
+          if [ -s .env ]; then
+            echo "Syncing .env file to VPS staging location..."
+            scp -o StrictHostKeyChecking=no -i private_key.pem .env $EC2_USER@$EC2_HOST:/tmp/.env.commented-bible
+          else
+            echo "No custom environment variables provided; skipping .env sync."
+          fi
+
+          rm -f private_key.pem .env
+
+  deploy-on-vps:
+    name: Deploy on VPS
+    environment: PROD
+    needs: deploy-preparation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS via SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_KEY: ${{ secrets.EC2_KEY }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          echo "$EC2_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          if ! ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST "echo 'SSH connection successful'"; then
+            echo "Failed to establish SSH connection"
+            rm -f private_key.pem
+            exit 1
+          fi
+
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+            SERVICE_NAME="commented-bible-application"
+            SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+            APP_DIR="/root/commented-bible-application"
+
+            # Check if service is currently running and stop it if active
+            if sudo systemctl is-active --quiet "$SERVICE_NAME"; then
+              echo "Service $SERVICE_NAME is currently running. Stopping service before update..."
+              sudo systemctl stop "$SERVICE_NAME"
+            elif [ -f "$SERVICE_FILE" ]; then
+              echo "Service $SERVICE_NAME exists but is not running."
+            else
+              echo "Service $SERVICE_NAME does not exist yet. It will be created after the build."
+            fi
+
+            # Ensure git is available
+            if ! command -v git &> /dev/null; then
+              echo "Git not found on VPS. Installing git..."
+              sudo apt-get update && sudo apt-get install -y git
+            fi
+
+            # Locate repository directory on VPS, or clone if missing
+            REPO_DIR="$HOME/commented-bible-application"
+            if [ -d "$HOME/commented-bible-application/.git" ] || [ -d "$HOME/commented-bible-application" ]; then
+              REPO_DIR="$HOME/commented-bible-application"
+              cd "$REPO_DIR"
+              echo "Pulling latest code..."
+              git fetch origin main
+              git reset --hard origin/main
+            elif [ -d "$HOME/vos-escrevo-app/.git" ] || [ -d "$HOME/vos-escrevo-app" ]; then
+              REPO_DIR="$HOME/vos-escrevo-app"
+              cd "$REPO_DIR"
+              echo "Pulling latest code..."
+              git fetch origin main
+              git reset --hard origin/main
+            elif [ -d "$HOME/commented-bible/.git" ] || [ -d "$HOME/commented-bible" ]; then
+              REPO_DIR="$HOME/commented-bible"
+              cd "$REPO_DIR"
+              echo "Pulling latest code..."
+              git fetch origin main
+              git reset --hard origin/main
+            elif [ -d /root/commented-bible-application/repo ]; then
+              REPO_DIR="/root/commented-bible-application/repo"
+              cd "$REPO_DIR"
+              echo "Pulling latest code..."
+              git fetch origin main
+              git reset --hard origin/main
+            elif [ -d /root/commented-bible-application/.git ]; then
+              REPO_DIR="/root/commented-bible-application"
+              cd "$REPO_DIR"
+              echo "Pulling latest code..."
+              git fetch origin main
+              git reset --hard origin/main
+            else
+              echo "Repository not found on VPS. Cloning to $REPO_DIR..."
+              git clone https://github.com/chavesjoabe/vos-escrevo-app.git "$REPO_DIR"
+              cd "$REPO_DIR"
+            fi
+
+            echo "Entering backend directory..."
+            cd backend || {
+              echo "Directory backend not found. Exiting.";
+              exit 1;
+            }
+
+            # Update .env on VPS if transferred
+            if [ -f /tmp/.env.commented-bible ]; then
+              echo "Updating .env file on VPS..."
+              cp /tmp/.env.commented-bible .env
+              sudo mkdir -p "$APP_DIR"
+              sudo cp /tmp/.env.commented-bible "$APP_DIR/.env"
+              sudo chmod 600 "$APP_DIR/.env"
+              rm -f /tmp/.env.commented-bible
+            fi
+
+            # Ensure Java JDK 21 is available for Maven build and runtime
+            if ! command -v java &> /dev/null; then
+              echo "Java not found on VPS. Installing OpenJDK 21..."
+              sudo apt-get update && sudo apt-get install -y openjdk-21-jdk
+            fi
+
+            echo "Building new JAR..."
+            chmod +x mvnw
+            ./mvnw clean package -DskipTests
+
+            echo "Deploying new JAR..."
+            sudo mkdir -p "$APP_DIR"
+            sudo rm -rf "$APP_DIR/${SERVICE_NAME}.jar"
+
+            if [ -f target/*-runner.jar ]; then
+              sudo cp target/*-runner.jar "$APP_DIR/${SERVICE_NAME}.jar"
+            else
+              sudo cp target/*.jar "$APP_DIR/${SERVICE_NAME}.jar"
+            fi
+            sudo chmod 755 "$APP_DIR/${SERVICE_NAME}.jar"
+
+            # If service file does not exist, create and enable it
+            if [ ! -f "$SERVICE_FILE" ]; then
+              echo "Creating systemd service file at $SERVICE_FILE..."
+              JAVA_PATH=$(which java || echo "/usr/bin/java")
+
+              {
+                echo "[Unit]"
+                echo "Description=Commented Bible Backend Application"
+                echo "After=network.target"
+                echo ""
+                echo "[Service]"
+                echo "Type=simple"
+                echo "User=root"
+                echo "WorkingDirectory=$APP_DIR"
+                echo "EnvironmentFile=-$APP_DIR/.env"
+                echo "Environment=\"PORT=3000\""
+                echo "Environment=\"QUARKUS_HTTP_PORT=3000\""
+                echo "ExecStart=$JAVA_PATH -jar $APP_DIR/${SERVICE_NAME}.jar"
+                echo "Restart=always"
+                echo "RestartSec=5"
+                echo "SuccessExitStatus=143"
+                echo ""
+                echo "[Install]"
+                echo "WantedBy=multi-user.target"
+              } | sudo tee "$SERVICE_FILE" > /dev/null
+
+              sudo chmod 644 "$SERVICE_FILE"
+              sudo systemctl daemon-reload
+              sudo systemctl enable "$SERVICE_NAME"
+              echo "Service $SERVICE_NAME created and enabled on boot."
+            fi
+
+            echo "Reloading systemd and restarting service..."
+            sudo systemctl daemon-reload
+            sudo systemctl restart "$SERVICE_NAME"
+
+            echo "Verifying service is running..."
+            sleep 3
+            if ! sudo systemctl is-active --quiet "$SERVICE_NAME"; then
+              echo "Service $SERVICE_NAME failed to start! Inspecting logs..."
+              sudo systemctl status "$SERVICE_NAME" --no-pager
+              sudo journalctl -u "$SERVICE_NAME" -n 50 --no-pager
+              exit 1
+            fi
+
+            TARGET_PORT=""
+            if [ -f "$APP_DIR/.env" ]; then
+              TARGET_PORT=$(grep -E '^PORT=' "$APP_DIR/.env" | cut -d '=' -f2- | tr -d '\r' || true)
+              if [ -z "$TARGET_PORT" ]; then
+                TARGET_PORT=$(grep -E '^QUARKUS_HTTP_PORT=' "$APP_DIR/.env" | cut -d '=' -f2- | tr -d '\r' || true)
+              fi
+            fi
+            TARGET_PORT="${TARGET_PORT:-3000}"
+
+            echo "Verifying application health endpoint on port $TARGET_PORT..."
+            HEALTH_OK=false
+            for i in {1..12}; do
+              if curl -fsSL "http://localhost:${TARGET_PORT}/health" > /dev/null 2>&1; then
+                HEALTH_OK=true
+                break
+              fi
+              echo "Waiting for health endpoint to respond (attempt $i/12)..."
+              sleep 2
+            done
+
+            if [ "$HEALTH_OK" = true ]; then
+              echo -e "\nHealth check PASSED! Application is running successfully as a service."
+              curl -s "http://localhost:${TARGET_PORT}/health"
+              echo ""
+            else
+              echo -e "\nHealth check FAILED! Checking service status logs..."
+              sudo systemctl status "$SERVICE_NAME" --no-pager
+              sudo journalctl -u "$SERVICE_NAME" -n 50 --no-pager
+              exit 1
+            fi
+
+            echo "Deployment successful!"
+          EOF
+          rm -f private_key.pem

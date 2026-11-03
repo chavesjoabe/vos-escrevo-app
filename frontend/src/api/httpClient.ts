@@ -1,7 +1,7 @@
 /**
  * Thin fetch wrapper / HTTP Client.
- * Uses Vite's /api proxy in development (forwarding to Quarkus on port 8080)
- * or direct backend host port 8080, attaching the authenticated user's Bearer token.
+ * Uses Vite's /api proxy in development (forwarding to Quarkus on port 3000)
+ * or direct backend host port 3000, attaching the authenticated user's Bearer token.
  */
 
 export const AUTH_SESSION_STORAGE_KEY = 'commented_bible_auth_session_v1';
@@ -13,9 +13,9 @@ function resolveDirectBackendUrl(): string {
     return configuredUrl.replace(/\/+$/, '');
   }
   if (typeof window !== 'undefined' && window.location?.hostname) {
-    return `${window.location.protocol}//${window.location.hostname}:8080`;
+    return `${window.location.protocol}//${window.location.hostname}:3000`;
   }
-  return 'http://localhost:8080';
+  return 'http://localhost:3000';
 }
 
 function getStoredAuthToken(): string | null {

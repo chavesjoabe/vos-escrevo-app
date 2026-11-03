@@ -43,6 +43,9 @@ credentials*.json
 hs_err_pid*
 replay_pid*
 
+# Design documents
+BACKEND_DESIGN.md
+
 # IDE & OS files
 .idea/
 *.iws

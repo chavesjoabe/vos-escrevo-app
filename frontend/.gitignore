@@ -35,6 +35,9 @@ lerna-debug.log*
 coverage/
 .nyc_output/
 
+# Design documents
+FRONTEND_DESIGN.md
+
 # Editor & OS files
 .vscode/*
 !.vscode/extensions.json

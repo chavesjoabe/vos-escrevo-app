@@ -5,8 +5,11 @@
 !.vscode/extensions.json
 *.sw?
 
-# AI Agent / local tooling configs
+# AI Agent / local tooling configs & design documents
 .agents/
+DESIGN.md
+backend/BACKEND_DESIGN.md
+frontend/FRONTEND_DESIGN.md
 
 # Global environment & secret files
 .env
