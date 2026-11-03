@@ -63,33 +63,11 @@ jobs:
       - name: Create .env file for deployment
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
-          MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
-          AUTH_TOKEN_SECRET: ${{ secrets.AUTH_TOKEN_SECRET }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          BIBLE_SEED_ENABLED: ${{ secrets.BIBLE_SEED_ENABLED }}
-          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
-          PORT: ${{ secrets.PORT }}
-          QUARKUS_HTTP_PORT: ${{ secrets.QUARKUS_HTTP_PORT }}
         run: |
           touch .env
           if [ -n "$DATABASE_URL" ]; then
             echo "DATABASE_URL=$DATABASE_URL" >> .env
-          elif [ -n "$MONGODB_CONNECTION_STRING" ]; then
-            echo "DATABASE_URL=$MONGODB_CONNECTION_STRING" >> .env
           fi
-          if [ -n "$MONGODB_CONNECTION_STRING" ]; then echo "MONGODB_CONNECTION_STRING=$MONGODB_CONNECTION_STRING" >> .env; fi
-          if [ -n "$MONGODB_DATABASE" ]; then echo "MONGODB_DATABASE=$MONGODB_DATABASE" >> .env; fi
-          if [ -n "$AUTH_TOKEN_SECRET" ]; then
-            echo "AUTH_TOKEN_SECRET=$AUTH_TOKEN_SECRET" >> .env
-          elif [ -n "$JWT_SECRET" ]; then
-            echo "AUTH_TOKEN_SECRET=$JWT_SECRET" >> .env
-          fi
-          if [ -n "$JWT_SECRET" ]; then echo "JWT_SECRET=$JWT_SECRET" >> .env; fi
-          if [ -n "$BIBLE_SEED_ENABLED" ]; then echo "BIBLE_SEED_ENABLED=$BIBLE_SEED_ENABLED" >> .env; fi
-          if [ -n "$CORS_ORIGINS" ]; then echo "CORS_ORIGINS=$CORS_ORIGINS" >> .env; fi
-          echo "PORT=${PORT:-3000}" >> .env
-          echo "QUARKUS_HTTP_PORT=${QUARKUS_HTTP_PORT:-${PORT:-3000}}" >> .env
           echo "Environment configuration prepared successfully."
 
       - name: Verify SSH connection and stage environment to VPS
@@ -128,7 +106,6 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_KEY: ${{ secrets.EC2_KEY }}
-          APP_DIR: ${{ secrets.APP_DIR }}
         run: |
           echo "$EC2_KEY" > private_key.pem
           chmod 600 private_key.pem
@@ -250,8 +227,6 @@ jobs:
                 echo "User=root"
                 echo "WorkingDirectory=$APP_DIR"
                 echo "EnvironmentFile=-$APP_DIR/.env"
-                echo "Environment=\"PORT=3000\""
-                echo "Environment=\"QUARKUS_HTTP_PORT=3000\""
                 echo "ExecStart=$JAVA_PATH -jar $APP_DIR/${SERVICE_NAME}.jar"
                 echo "Restart=always"
                 echo "RestartSec=5"
@@ -280,14 +255,7 @@ jobs:
               exit 1
             fi
 
-            TARGET_PORT=""
-            if [ -f "$APP_DIR/.env" ]; then
-              TARGET_PORT=$(grep -E '^PORT=' "$APP_DIR/.env" | cut -d '=' -f2- | tr -d '\r' || true)
-              if [ -z "$TARGET_PORT" ]; then
-                TARGET_PORT=$(grep -E '^QUARKUS_HTTP_PORT=' "$APP_DIR/.env" | cut -d '=' -f2- | tr -d '\r' || true)
-              fi
-            fi
-            TARGET_PORT="${TARGET_PORT:-3000}"
+            TARGET_PORT="3000"
 
             echo "Verifying application health endpoint on port $TARGET_PORT..."
             HEALTH_OK=false
