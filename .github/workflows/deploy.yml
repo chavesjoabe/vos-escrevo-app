@@ -76,8 +76,21 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_KEY: ${{ secrets.EC2_KEY }}
         run: |
-          echo "$EC2_KEY" > private_key.pem
+          if [ -z "$EC2_KEY" ] || [ -z "$EC2_HOST" ] || [ -z "$EC2_USER" ]; then
+            echo "Error: EC2_HOST, EC2_USER, or EC2_KEY secret is missing or empty."
+            exit 1
+          fi
+
+          # Normalize CRLF line endings and ensure a trailing newline so OpenSSH libcrypto can parse the key
+          printf '%s\n' "$EC2_KEY" | tr -d '\r' > private_key.pem
           chmod 600 private_key.pem
+
+          if ! ssh-keygen -y -f private_key.pem > /dev/null 2>&1; then
+            echo "Error: EC2_KEY is not a valid OpenSSH/PEM private key (failed ssh-keygen validation)."
+            echo "Make sure the secret contains the full private key including '-----BEGIN ... PRIVATE KEY-----' and '-----END ... PRIVATE KEY-----'."
+            rm -f private_key.pem
+            exit 1
+          fi
 
           if ! ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST "echo 'SSH connection successful'"; then
             echo "Failed to establish SSH connection"
@@ -107,7 +120,7 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_KEY: ${{ secrets.EC2_KEY }}
         run: |
-          echo "$EC2_KEY" > private_key.pem
+          printf '%s\n' "$EC2_KEY" | tr -d '\r' > private_key.pem
           chmod 600 private_key.pem
 
           if ! ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST "echo 'SSH connection successful'"; then
