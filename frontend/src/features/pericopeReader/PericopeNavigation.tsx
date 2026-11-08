@@ -64,15 +64,11 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
 
   return (
     <Box
-      display="flex"
-      alignItems="center"
-      justifyContent="space-between"
+      component="header"
       width="100%"
       sx={{
-        position: 'relative',
-        px: { xs: 2, sm: 2.5 },
-        py: 0.75,
-        height: 50,
+        flexShrink: 0,
+        pt: 'max(24px, calc(env(safe-area-inset-top, 0px) + 8px))',
         backgroundColor: isDark ? '#0E131F' : '#FFFFFF',
         borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0'}`,
         zIndex: 200,
@@ -80,6 +76,18 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
         transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
     >
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        width="100%"
+        sx={{
+          position: 'relative',
+          px: { xs: 2, sm: 2.5 },
+          py: 0.75,
+          height: 50,
+        }}
+      >
       {/* Left section: Back to Library & Book Identity */}
       <Box display="flex" alignItems="center" gap={1.5}>
         <Button
@@ -328,6 +336,7 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
             </span>
           </Tooltip>
         </Box>
+      </Box>
       </Box>
     </Box>
   );

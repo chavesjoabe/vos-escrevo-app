@@ -116,7 +116,11 @@ export const LoginPage: React.FC = () => {
         WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-y',
         backgroundColor: isDark ? '#0B0F17' : '#F8FAFC',
-        py: { xs: 4, md: 6 },
+        pt: {
+          xs: 'max(32px, calc(env(safe-area-inset-top, 0px) + 20px))',
+          md: 'max(48px, calc(env(safe-area-inset-top, 0px) + 28px))',
+        },
+        pb: { xs: 4, md: 6 },
         px: { xs: 2, sm: 4 },
         transition: 'background-color 0.25s ease',
       }}
