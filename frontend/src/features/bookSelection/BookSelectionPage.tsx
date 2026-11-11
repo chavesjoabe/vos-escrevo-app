@@ -11,6 +11,7 @@ import {
   MenuItem,
   FormControl,
   CircularProgress,
+  Backdrop,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
@@ -712,6 +713,33 @@ export const BookSelectionPage: React.FC<BookSelectionPageProps> = ({ onSelectBo
           </Box>
         )}
       </Container>
+
+      {/* Full-Page Half-Transparent Loading Overlay */}
+      <Backdrop
+        open={loadingBooks}
+        sx={{
+          zIndex: 100000,
+          backgroundColor: isDark ? 'rgba(11, 15, 23, 0.55)' : 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+        }}
+      >
+        <CircularProgress size={48} sx={{ color: isDark ? '#38BDF8' : '#0284C7' }} />
+        <Typography
+          sx={{
+            fontFamily: monoFontFamily,
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: '#F8FAFC',
+          }}
+        >
+          Carregando
+        </Typography>
+      </Backdrop>
     </Box>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, startTransition, useRef, useMemo } from 'react';
-import { Box, CircularProgress, Snackbar, Alert } from '@mui/material';
+import { Box, Backdrop, CircularProgress, Snackbar, Alert, Typography } from '@mui/material';
 import { Book } from '../../domain/book';
 import { Pericope, PericopeSummary } from '../../domain/pericope';
 import { Stroke, ToolType } from '../../domain/stroke';
@@ -12,6 +12,7 @@ import { PericopeTextPanel, PericopeHeader } from './PericopeTextPanel';
 import { CommentPagePanel, CommentPageHeader } from './CommentPagePanel';
 import { DrawingToolbar } from './DrawingToolbar';
 import { useThemeMode } from '../../theme/ThemeContext';
+import { monoFontFamily } from '../../theme/theme';
 
 /**
  * Canonical spread coordinate geometry:
@@ -75,9 +76,10 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
   const [highlightStrokes, setHighlightStrokes] = useState<Stroke[]>([]);
   const [commentDate, setCommentDate] = useState<string>('');
 
-  // Save state
+  // Save & Page Transition state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isChangingPage, setIsChangingPage] = useState<boolean>(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -264,12 +266,15 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
 
       setIsSaving(true);
       try {
-        await pericopeApi.savePericopeStrokes(
-          currentPericope.id,
-          commentStrokes,
-          highlightStrokes,
-          commentDate
-        );
+        await Promise.all([
+          pericopeApi.savePericopeStrokes(
+            currentPericope.id,
+            commentStrokes,
+            highlightStrokes,
+            commentDate
+          ),
+          new Promise((resolve) => setTimeout(resolve, 250)),
+        ]);
         setHasUnsavedChanges(false);
         const now = new Date();
         const formattedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -472,24 +477,39 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
   };
 
   const handleSelectPericope = async (pericopeId: string) => {
-    if (hasUnsavedChanges) {
-      await handleSave(false);
-    }
+    if (pericopeId === currentPericope?.id) return;
+
+    setIsChangingPage(true);
     try {
-      const fullPericope = await pericopeApi.getPericopeById(pericopeId);
+      if (hasUnsavedChanges) {
+        await handleSave(false);
+      }
+      const [fullPericope] = await Promise.all([
+        pericopeApi.getPericopeById(pericopeId),
+        new Promise((resolve) => setTimeout(resolve, 250)),
+      ]);
       if (fullPericope) {
         loadPericopeState(fullPericope);
       }
     } catch (error) {
       console.error('Failed to load selected chapter', error);
+    } finally {
+      setIsChangingPage(false);
     }
   };
 
   const handleBackToBooksClick = async () => {
-    if (hasUnsavedChanges) {
-      await handleSave(false);
+    setIsChangingPage(true);
+    try {
+      if (hasUnsavedChanges) {
+        await handleSave(false);
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      onBackToBooks();
+    } finally {
+      setIsChangingPage(false);
     }
-    onBackToBooks();
   };
 
   // Compute maximum stroke vertical reach to safeguard scroll boundaries
@@ -510,10 +530,40 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     return maxY;
   }, [commentStrokes, highlightStrokes]);
 
-  if (loading || !currentBook || !currentPericope) {
+  if (!currentBook || !currentPericope) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress size={48} />
+      <Box
+        sx={{
+          minHeight: '100dvh',
+          width: '100vw',
+          backgroundColor: isDark ? '#0B0F17' : '#F8FAFC',
+        }}
+      >
+        <Backdrop
+          open
+          sx={{
+            zIndex: 100000,
+            backgroundColor: isDark ? 'rgba(11, 15, 23, 0.55)' : 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.5,
+          }}
+        >
+          <CircularProgress size={48} sx={{ color: isDark ? '#38BDF8' : '#0284C7' }} />
+          <Typography
+            sx={{
+              fontFamily: monoFontFamily,
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: '#F8FAFC',
+            }}
+          >
+            Carregando
+          </Typography>
+        </Backdrop>
       </Box>
     );
   }
@@ -546,6 +596,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
         currentPericope={currentPericope}
         hasUnsavedChanges={hasUnsavedChanges}
         isSaving={isSaving}
+        isChangingPage={isChangingPage}
         lastSavedTime={lastSavedTime}
         onSave={() => handleSave(true)}
         onSelectPericope={handleSelectPericope}
@@ -721,6 +772,33 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
           canRedo={redoStack.length > 0}
         />
       </Box>
+
+      {/* Full-Page Half-Transparent Loading Overlay (Save & Page Change) */}
+      <Backdrop
+        open={loading || isSaving || isChangingPage}
+        sx={{
+          zIndex: 100000,
+          backgroundColor: isDark ? 'rgba(11, 15, 23, 0.55)' : 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+        }}
+      >
+        <CircularProgress size={48} sx={{ color: isDark ? '#38BDF8' : '#0284C7' }} />
+        <Typography
+          sx={{
+            fontFamily: monoFontFamily,
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: '#F8FAFC',
+          }}
+        >
+          Carregando
+        </Typography>
+      </Backdrop>
 
       {/* Manual Save Confirmation Toast */}
       <Snackbar

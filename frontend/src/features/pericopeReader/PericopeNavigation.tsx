@@ -26,6 +26,7 @@ interface PericopeNavigationProps {
   currentPericope: Pericope;
   hasUnsavedChanges: boolean;
   isSaving: boolean;
+  isChangingPage?: boolean;
   lastSavedTime: string | null;
   onSave: () => void;
   onSelectPericope: (pericopeId: string) => void;
@@ -38,6 +39,7 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
   currentPericope,
   hasUnsavedChanges,
   isSaving,
+  isChangingPage = false,
   lastSavedTime,
   onSave,
   onSelectPericope,
@@ -45,6 +47,7 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
 }) => {
   const { mode, toggleThemeMode } = useThemeMode();
   const isDark = mode === 'dark';
+  const isBusy = isSaving || isChangingPage;
 
   const currentIndex = pericopes.findIndex((p) => p.id === currentPericope.id);
   const hasPrevious = currentIndex > 0;
@@ -95,6 +98,7 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
           size="small"
           startIcon={<ArrowBackIosNewIcon sx={{ fontSize: '13px !important' }} />}
           onClick={onBackToBooks}
+          disabled={isBusy}
           sx={{
             fontFamily: sansFontFamily,
             color: isDark ? '#94A3B8' : '#64748B',
@@ -132,6 +136,7 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
         <Select
           value={currentPericope.id}
           onChange={(e) => onSelectPericope(e.target.value as string)}
+          disabled={isBusy}
           size="small"
           variant="outlined"
           sx={{
@@ -300,7 +305,7 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
             <span>
               <IconButton
                 onClick={handlePrevious}
-                disabled={!hasPrevious}
+                disabled={!hasPrevious || isBusy}
                 size="small"
                 sx={{
                   p: 0.5,
@@ -320,7 +325,7 @@ export const PericopeNavigation: React.FC<PericopeNavigationProps> = ({
             <span>
               <IconButton
                 onClick={handleNext}
-                disabled={!hasNext}
+                disabled={!hasNext || isBusy}
                 size="small"
                 sx={{
                   p: 0.5,
