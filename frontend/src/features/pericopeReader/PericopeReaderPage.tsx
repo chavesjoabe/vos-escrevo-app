@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, startTransition, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, startTransition, useRef, useMemo } from 'react';
 import { Box, CircularProgress, Snackbar, Alert } from '@mui/material';
 import { Book } from '../../domain/book';
 import { Pericope, PericopeSummary } from '../../domain/pericope';
@@ -12,6 +12,22 @@ import { PericopeTextPanel, PericopeHeader } from './PericopeTextPanel';
 import { CommentPagePanel, CommentPageHeader } from './CommentPagePanel';
 import { DrawingToolbar } from './DrawingToolbar';
 import { useThemeMode } from '../../theme/ThemeContext';
+
+/**
+ * Canonical spread coordinate geometry:
+ * - Each page has a fixed canonical width of 480px (960px total spread).
+ * - Line breaks and stroke coordinates (positionX, positionY) are 100% invariant
+ *   across Landscape and Portrait orientations.
+ * - In Landscape (> 960px), the spread upscales proportionally.
+ * - In Portrait (< 960px), the spread reduces zoom proportionally while enforcing
+ *   MIN_SPREAD_SCALE (0.78) so the 20px canonical Scripture font never drops below ~15.6px.
+ */
+export const CANONICAL_PAGE_WIDTH = 480;
+export const CANONICAL_SPREAD_WIDTH = CANONICAL_PAGE_WIDTH * 2; // 960px
+export const MIN_SPREAD_SCALE = 0.78;
+export const MAX_AUTO_SPREAD_SCALE = 1.45;
+export const MAX_MANUAL_SPREAD_SCALE = 1.60;
+const ZOOM_STEP = 0.05;
 
 interface PericopeReaderPageProps {
   bookId: string;
@@ -69,8 +85,122 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
   const [undoStack, setUndoStack] = useState<UndoHistoryState[]>([]);
   const [redoStack, setRedoStack] = useState<UndoHistoryState[]>([]);
 
-  // Unified scroll container ref
+  // Unified scroll container ref & canonical spread content ref
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const spreadContentRef = useRef<HTMLDivElement | null>(null);
+
+  // Viewport & canonical spread sizing state for orientation-locked proportional zoom
+  const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : CANONICAL_SPREAD_WIDTH,
+    height: typeof window !== 'undefined' ? Math.max(400, window.innerHeight - 104) : 700,
+  }));
+  const [canonicalHeight, setCanonicalHeight] = useState<number>(800);
+  const [manualScale, setManualScale] = useState<number | null>(null);
+
+  // Compute automatic orientation scale (upscales in landscape, reduces zoom in portrait with 0.78 floor)
+  const autoScale = useMemo(() => {
+    const rawScale = viewportSize.width / CANONICAL_SPREAD_WIDTH;
+    const clamped = Math.min(MAX_AUTO_SPREAD_SCALE, Math.max(MIN_SPREAD_SCALE, rawScale));
+    return Math.round(clamped * 1000) / 1000;
+  }, [viewportSize.width]);
+
+  const effectiveScale = manualScale !== null ? manualScale : autoScale;
+  const prevScaleRef = useRef<number>(effectiveScale);
+
+  const handleZoomOut = useCallback(() => {
+    setManualScale((prev) => {
+      const base = prev !== null ? prev : autoScale;
+      const next = Math.max(MIN_SPREAD_SCALE, Math.round((base - ZOOM_STEP) * 100) / 100);
+      return next;
+    });
+  }, [autoScale]);
+
+  const handleZoomIn = useCallback(() => {
+    setManualScale((prev) => {
+      const base = prev !== null ? prev : autoScale;
+      const next = Math.min(MAX_MANUAL_SPREAD_SCALE, Math.round((base + ZOOM_STEP) * 100) / 100);
+      return next;
+    });
+  }, [autoScale]);
+
+  const handleResetZoom = useCallback(() => {
+    setManualScale(null);
+  }, []);
+
+  // Measure scroll container viewport across window resizes and iPad orientation changes
+  useLayoutEffect(() => {
+    const updateViewport = () => {
+      const el = scrollContainerRef.current;
+      if (el && el.clientWidth > 0 && el.clientHeight > 0) {
+        setViewportSize((prev) =>
+          prev.width === el.clientWidth && prev.height === el.clientHeight
+            ? prev
+            : { width: el.clientWidth, height: el.clientHeight }
+        );
+      } else if (typeof window !== 'undefined') {
+        const fallbackWidth = window.innerWidth;
+        const fallbackHeight = Math.max(320, window.innerHeight - 104);
+        setViewportSize((prev) =>
+          prev.width === fallbackWidth && prev.height === fallbackHeight
+            ? prev
+            : { width: fallbackWidth, height: fallbackHeight }
+        );
+      }
+    };
+
+    updateViewport();
+
+    const el = scrollContainerRef.current;
+    let observer: ResizeObserver | null = null;
+    if (el && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => updateViewport());
+      observer.observe(el);
+    }
+
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('orientationchange', updateViewport);
+    };
+  }, [loading, currentPericope?.id]);
+
+  // Measure unscaled canonical height of the two-page spread
+  useLayoutEffect(() => {
+    const spreadEl = spreadContentRef.current;
+    if (!spreadEl) return;
+
+    const updateHeight = () => {
+      const measured = spreadEl.offsetHeight || spreadEl.scrollHeight;
+      if (measured > 0) {
+        setCanonicalHeight((prev) => (prev === measured ? prev : measured));
+      }
+    };
+
+    updateHeight();
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => updateHeight());
+      observer.observe(spreadEl);
+    }
+
+    return () => {
+      observer?.disconnect();
+    };
+  }, [loading, currentPericope?.id]);
+
+  // Preserve relative verse scroll offset when switching between Landscape and Portrait or zooming
+  useLayoutEffect(() => {
+    const el = scrollContainerRef.current;
+    if (el && prevScaleRef.current !== effectiveScale && prevScaleRef.current > 0) {
+      const ratio = effectiveScale / prevScaleRef.current;
+      el.scrollTop = Math.round(el.scrollTop * ratio);
+      el.scrollLeft = Math.round(el.scrollLeft * ratio);
+    }
+    prevScaleRef.current = effectiveScale;
+  }, [effectiveScale]);
 
   // Load Book and Chapters (Pericopes)
   useEffect(() => {
@@ -117,6 +247,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     setLastSavedTime(null);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
+      scrollContainerRef.current.scrollLeft = 0;
     }
   };
 
@@ -176,34 +307,42 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     };
   }, [hasUnsavedChanges, currentPericope, commentStrokes, highlightStrokes, commentDate]);
 
-  // Multi-touch 2-finger scroll gesture tracker
+  // Multi-touch 2-finger scroll gesture tracker (supports both vertical and horizontal pan)
   useEffect(() => {
     if (loading) return;
     const el = scrollContainerRef.current;
     if (!el) return;
 
+    let lastAvgX: number | null = null;
     let lastAvgY: number | null = null;
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length >= 2) {
+        lastAvgX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         lastAvgY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       } else {
+        lastAvgX = null;
         lastAvgY = null;
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length >= 2) {
+        const currentAvgX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const currentAvgY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        if (lastAvgY !== null) {
+        if (lastAvgX !== null && lastAvgY !== null) {
+          const deltaX = lastAvgX - currentAvgX;
           const deltaY = lastAvgY - currentAvgY;
+          el.scrollLeft += deltaX;
           el.scrollTop += deltaY;
         }
+        lastAvgX = currentAvgX;
         lastAvgY = currentAvgY;
         if (e.cancelable) {
           e.preventDefault();
         }
       } else {
+        lastAvgX = null;
         lastAvgY = null;
         if (e.touches.length === 1 && e.cancelable) {
           // Strictly prevent single finger from scrolling the page to protect palm resting
@@ -214,8 +353,10 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
 
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
+        lastAvgX = null;
         lastAvgY = null;
       } else {
+        lastAvgX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         lastAvgY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       }
     };
@@ -377,6 +518,15 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     );
   }
 
+  const minCanonicalSpreadHeight = Math.max(
+    Math.ceil(viewportSize.height / effectiveScale),
+    maxStrokeY > 0 ? Math.ceil(maxStrokeY + 250) : 0
+  );
+  const effectiveCanonicalHeight = Math.max(canonicalHeight, minCanonicalSpreadHeight);
+  const scaledSpreadWidth = Math.round(CANONICAL_SPREAD_WIDTH * effectiveScale);
+  const scaledSpreadHeight = Math.round(effectiveCanonicalHeight * effectiveScale);
+  const canHorizontalScroll = scaledSpreadWidth > viewportSize.width + 2;
+
   return (
     <Box
       sx={{
@@ -422,12 +572,22 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
           <PericopeHeader pericope={currentPericope} />
         </Box>
 
-        {/* Right Page Header: Date & Page Subtitle */}
+        {/* Right Page Header: Date, Orientation-Locked Zoom Control & Page Subtitle */}
         <Box sx={{
           width: '50%',
           boxShadow: isDark ? 'inset 6px 0 16px -6px rgba(0, 0, 0, 0.6)' : 'inset 6px 0 16px -6px rgba(0, 0, 0, 0.03)',
         }}>
-          <CommentPageHeader date={commentDate} onDateChange={handleDateChange} />
+          <CommentPageHeader
+            date={commentDate}
+            onDateChange={handleDateChange}
+            scale={effectiveScale}
+            isAutoScale={manualScale === null}
+            canZoomOut={effectiveScale > MIN_SPREAD_SCALE + 0.005}
+            canZoomIn={effectiveScale < MAX_MANUAL_SPREAD_SCALE - 0.005}
+            onZoomOut={handleZoomOut}
+            onZoomIn={handleZoomIn}
+            onResetZoom={handleResetZoom}
+          />
         </Box>
       </Box>
 
@@ -440,7 +600,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
           flexBasis: 0,
           minHeight: 0,
           overflowY: 'auto',
-          overflowX: 'hidden',
+          overflowX: canHorizontalScroll ? 'auto' : 'hidden',
           position: 'relative',
           userSelect: 'none',
           WebkitUserSelect: 'none',
@@ -448,6 +608,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
           scrollbarWidth: 'thin',
           '&::-webkit-scrollbar': {
             width: '6px',
+            height: '6px',
           },
           '&::-webkit-scrollbar-track': {
             backgroundColor: isDark ? '#0B0F17' : '#F8FAFC',
@@ -458,58 +619,77 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
           },
         }}
       >
+        {/* Scaled Sizer Box: matches the exact post-transform dimensions so scroll bounds never clip or drift */}
         <Box
           sx={{
-            display: 'flex',
-            minHeight: maxStrokeY > 0 ? `max(100%, ${maxStrokeY + 250}px)` : '100%',
+            width: `${scaledSpreadWidth}px`,
+            height: `${scaledSpreadHeight}px`,
+            mx: 'auto',
             position: 'relative',
-            alignItems: 'stretch',
+            overflow: 'hidden',
           }}
         >
-          {/* Left Column: Bible Text Panel */}
+          {/* Canonical Fixed-Width Spread (960px = 480px Left + 480px Right) */}
           <Box
+            ref={spreadContentRef}
             sx={{
-              width: '50%',
-              minHeight: '100%',
-              borderRight: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0'}`,
-              boxShadow: isDark ? 'inset -6px 0 20px -6px rgba(0, 0, 0, 0.7)' : 'inset -6px 0 16px -6px rgba(0, 0, 0, 0.04)',
+              display: 'flex',
+              width: `${CANONICAL_SPREAD_WIDTH}px`,
+              minHeight: `${minCanonicalSpreadHeight}px`,
               position: 'relative',
-              backgroundColor: isDark ? '#0B0F17' : '#FFFFFF',
+              alignItems: 'stretch',
+              transform: `scale(${effectiveScale})`,
+              transformOrigin: 'top left',
+              willChange: 'transform',
             }}
           >
-            <PericopeTextPanel
-              pericope={currentPericope}
-              highlightStrokes={highlightStrokes}
-              activeTool={activeTool}
-              activeColor={activeColor}
-              activeWidth={activeWidth}
-              pencilOnly={pencilOnly}
-              onStrokeComplete={handleTextStrokeComplete}
-              onEraseStrokes={handleEraseTextStrokes}
-            />
-          </Box>
+            {/* Left Column: Bible Text Panel (Fixed 480px Canonical Width) */}
+            <Box
+              sx={{
+                width: `${CANONICAL_PAGE_WIDTH}px`,
+                flexShrink: 0,
+                minHeight: '100%',
+                borderRight: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0'}`,
+                boxShadow: isDark ? 'inset -6px 0 20px -6px rgba(0, 0, 0, 0.7)' : 'inset -6px 0 16px -6px rgba(0, 0, 0, 0.04)',
+                position: 'relative',
+                backgroundColor: isDark ? '#0B0F17' : '#FFFFFF',
+              }}
+            >
+              <PericopeTextPanel
+                pericope={currentPericope}
+                highlightStrokes={highlightStrokes}
+                activeTool={activeTool}
+                activeColor={activeColor}
+                activeWidth={activeWidth}
+                pencilOnly={pencilOnly}
+                onStrokeComplete={handleTextStrokeComplete}
+                onEraseStrokes={handleEraseTextStrokes}
+              />
+            </Box>
 
-          {/* Right Column: Comment Page Panel (Draw Area) */}
-          <Box
-            sx={{
-              width: '50%',
-              minHeight: '100%',
-              boxShadow: isDark ? 'inset 6px 0 20px -6px rgba(0, 0, 0, 0.7)' : 'inset 6px 0 16px -6px rgba(0, 0, 0, 0.04)',
-              position: 'relative',
-              backgroundColor: isDark ? '#0B0F17' : '#FAF9F6',
-            }}
-          >
-            <CommentPagePanel
-              date={commentDate}
-              strokes={commentStrokes}
-              activeTool={activeTool}
-              activeColor={activeColor}
-              activeWidth={activeWidth}
-              pencilOnly={pencilOnly}
-              onDateChange={handleDateChange}
-              onStrokeComplete={handleCommentStrokeComplete}
-              onEraseStrokes={handleEraseCommentStrokes}
-            />
+            {/* Right Column: Comment Page Panel (Fixed 480px Canonical Width) */}
+            <Box
+              sx={{
+                width: `${CANONICAL_PAGE_WIDTH}px`,
+                flexShrink: 0,
+                minHeight: '100%',
+                boxShadow: isDark ? 'inset 6px 0 20px -6px rgba(0, 0, 0, 0.7)' : 'inset 6px 0 16px -6px rgba(0, 0, 0, 0.04)',
+                position: 'relative',
+                backgroundColor: isDark ? '#0B0F17' : '#FAF9F6',
+              }}
+            >
+              <CommentPagePanel
+                date={commentDate}
+                strokes={commentStrokes}
+                activeTool={activeTool}
+                activeColor={activeColor}
+                activeWidth={activeWidth}
+                pencilOnly={pencilOnly}
+                onDateChange={handleDateChange}
+                onStrokeComplete={handleCommentStrokeComplete}
+                onEraseStrokes={handleEraseCommentStrokes}
+              />
+            </Box>
           </Box>
         </Box>
       </Box>

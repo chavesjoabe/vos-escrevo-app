@@ -75,8 +75,21 @@ export function useStrokeCapture({
     targetElement: SVGSVGElement
   ): StrokePoint => {
     const boundingBox = targetElement.getBoundingClientRect();
-    const positionX = event.clientX - boundingBox.left;
-    const positionY = event.clientY - boundingBox.top;
+    const parentEl = targetElement.parentElement;
+    const logicalWidth =
+      (parentEl && parentEl.offsetWidth) ||
+      targetElement.clientWidth ||
+      boundingBox.width;
+    const logicalHeight =
+      (parentEl && parentEl.offsetHeight) ||
+      targetElement.clientHeight ||
+      boundingBox.height;
+
+    const scaleX = logicalWidth > 0 ? boundingBox.width / logicalWidth : 1;
+    const scaleY = logicalHeight > 0 ? boundingBox.height / logicalHeight : scaleX;
+
+    const positionX = (event.clientX - boundingBox.left) / (scaleX || 1);
+    const positionY = (event.clientY - boundingBox.top) / (scaleY || 1);
 
     let pressure = event.pressure;
     if (pressure === 0 || pressure === undefined) {

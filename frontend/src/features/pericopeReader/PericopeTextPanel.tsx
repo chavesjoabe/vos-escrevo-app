@@ -100,21 +100,24 @@ export const PericopeTextPanel: React.FC<PericopeTextPanelProps> = ({
         width: '100%',
         minHeight: '100%',
         position: 'relative',
-        p: { xs: 3, md: 4.5 },
-        pb: '55vh',
+        /* Fixed canonical pixel padding (never responsive to viewport breakpoints) so line breaks never shift between landscape and portrait */
+        px: '24px',
+        pt: '28px',
+        pb: '320px',
         backgroundColor: isDark ? '#0B0F17' : '#FFFFFF',
         userSelect: 'none',
         WebkitUserSelect: 'none',
+        WebkitTextSizeAdjust: '100%',
+        textSizeAdjust: '100%',
         transition: 'background-color 0.25s ease',
       }}
     >
-      {/* Render Bible Verses with Classical Editorial Typography */}
+      {/* Render Bible Verses with Canonical Editorial Typography (upscaled 20px canonical font keeps portrait zoom-out >= 15.6px) */}
       <Box
         sx={{
           position: 'relative',
           zIndex: 1,
-          maxWidth: '620px',
-          mx: 'auto',
+          width: '100%',
           pointerEvents: 'none',
           userSelect: 'none',
         }}
@@ -123,10 +126,10 @@ export const PericopeTextPanel: React.FC<PericopeTextPanelProps> = ({
           <Box
             key={verse.verseNumber}
             sx={{
-              mb: 2.75,
+              mb: '20px',
               display: 'flex',
               alignItems: 'baseline',
-              gap: 1.5,
+              gap: '12px',
             }}
           >
             <Typography
@@ -134,14 +137,15 @@ export const PericopeTextPanel: React.FC<PericopeTextPanelProps> = ({
               sx={{
                 fontFamily: monoFontFamily,
                 fontWeight: 600,
-                fontSize: '0.75rem',
+                fontSize: '13px',
                 color: isDark ? '#38BDF8' : '#0284C7',
-                lineHeight: '1.9',
-                minWidth: '22px',
+                lineHeight: 1.85,
+                minWidth: '24px',
                 textAlign: 'right',
                 userSelect: 'none',
                 opacity: 0.9,
                 fontVariantNumeric: 'tabular-nums',
+                flexShrink: 0,
               }}
             >
               {verse.verseNumber}
@@ -150,12 +154,13 @@ export const PericopeTextPanel: React.FC<PericopeTextPanelProps> = ({
               component="span"
               sx={{
                 fontFamily: scriptureFontFamily,
-                fontSize: '1.18rem',
-                lineHeight: 1.9,
+                fontSize: '20px',
+                lineHeight: 1.85,
                 color: isDark ? '#F1F5F9' : '#0F172A',
                 letterSpacing: '0.005em',
                 userSelect: 'none',
-                textWrap: 'pretty',
+                WebkitTextSizeAdjust: '100%',
+                textSizeAdjust: '100%',
               }}
             >
               {verse.text}

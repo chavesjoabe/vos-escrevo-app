@@ -1,5 +1,7 @@
 import React from 'react';
-import { Box, Typography, TextField } from '@mui/material';
+import { Box, Typography, TextField, IconButton, Tooltip } from '@mui/material';
+import RemoveIcon from '@mui/icons-material/Remove';
+import AddIcon from '@mui/icons-material/Add';
 import { Stroke, ToolType } from '../../domain/stroke';
 import { CommentCanvas } from './CommentCanvas';
 import { monoFontFamily, scriptureFontFamily } from '../../theme/theme';
@@ -8,11 +10,29 @@ import { useThemeMode } from '../../theme/ThemeContext';
 export interface CommentPageHeaderProps {
   date: string;
   onDateChange: (date: string) => void;
+  scale?: number;
+  isAutoScale?: boolean;
+  canZoomOut?: boolean;
+  canZoomIn?: boolean;
+  onZoomOut?: () => void;
+  onZoomIn?: () => void;
+  onResetZoom?: () => void;
 }
 
-export const CommentPageHeader: React.FC<CommentPageHeaderProps> = ({ date, onDateChange }) => {
+export const CommentPageHeader: React.FC<CommentPageHeaderProps> = ({
+  date,
+  onDateChange,
+  scale = 1,
+  isAutoScale = true,
+  canZoomOut = true,
+  canZoomIn = true,
+  onZoomOut,
+  onZoomIn,
+  onResetZoom,
+}) => {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const zoomPercent = Math.round(scale * 100);
 
   return (
     <Box
@@ -28,6 +48,7 @@ export const CommentPageHeader: React.FC<CommentPageHeaderProps> = ({ date, onDa
         userSelect: 'none',
         WebkitUserSelect: 'none',
         transition: 'background-color 0.2s ease',
+        gap: 1.5,
       }}
     >
       <Box display="flex" alignItems="center" gap={1.25}>
@@ -68,17 +89,105 @@ export const CommentPageHeader: React.FC<CommentPageHeaderProps> = ({ date, onDa
         />
       </Box>
 
-      <Typography
-        variant="caption"
-        sx={{
-          fontFamily: scriptureFontFamily,
-          fontStyle: 'italic',
-          color: isDark ? '#475569' : '#94A3B8',
-          fontSize: '0.82rem',
-        }}
-      >
-        Anotações Pessoais
-      </Typography>
+      <Box display="flex" alignItems="center" gap={1.5}>
+        {onZoomOut && onZoomIn && onResetZoom && (
+          <Box
+            display="flex"
+            alignItems="center"
+            sx={{
+              px: 0.5,
+              py: 0.2,
+              borderRadius: 1.5,
+              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0'}`,
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F8FAFC',
+            }}
+          >
+            <Tooltip title="Reduzir zoom (mínimo 78% para preservar leitura)">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={onZoomOut}
+                  disabled={!canZoomOut}
+                  aria-label="Reduzir zoom"
+                  sx={{
+                    p: 0.35,
+                    color: isDark ? '#94A3B8' : '#64748B',
+                    '&:hover': { color: isDark ? '#F8FAFC' : '#0F172A' },
+                  }}
+                >
+                  <RemoveIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            <Tooltip
+              title={
+                isAutoScale
+                  ? 'Escala automática ativa (mantém quebras de linha e posição dos traços entre Paisagem e Retrato)'
+                  : 'Clique para restaurar escala automática por orientação'
+              }
+            >
+              <Box
+                component="button"
+                type="button"
+                onClick={onResetZoom}
+                sx={{
+                  px: 0.75,
+                  py: 0.15,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  fontFamily: monoFontFamily,
+                  fontSize: '0.68rem',
+                  fontWeight: 600,
+                  fontVariantNumeric: 'tabular-nums',
+                  color: isAutoScale
+                    ? isDark ? '#94A3B8' : '#475569'
+                    : isDark ? '#38BDF8' : '#0284C7',
+                  borderRadius: 1,
+                  '&:hover': {
+                    color: isDark ? '#F8FAFC' : '#0F172A',
+                  },
+                }}
+              >
+                {zoomPercent}%{isAutoScale ? '' : '·M'}
+              </Box>
+            </Tooltip>
+
+            <Tooltip title="Aumentar zoom">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={onZoomIn}
+                  disabled={!canZoomIn}
+                  aria-label="Aumentar zoom"
+                  sx={{
+                    p: 0.35,
+                    color: isDark ? '#94A3B8' : '#64748B',
+                    '&:hover': { color: isDark ? '#F8FAFC' : '#0F172A' },
+                  }}
+                >
+                  <AddIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Box>
+        )}
+
+        <Typography
+          variant="caption"
+          sx={{
+            display: { xs: 'none', md: 'inline' },
+            fontFamily: scriptureFontFamily,
+            fontStyle: 'italic',
+            color: isDark ? '#475569' : '#94A3B8',
+            fontSize: '0.82rem',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Anotações Pessoais
+        </Typography>
+      </Box>
     </Box>
   );
 };

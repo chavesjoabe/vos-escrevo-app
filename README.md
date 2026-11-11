@@ -43,6 +43,10 @@ Each authenticated user owns a private study journal. Selecting a Bible book and
 - **Palm Rejection & 2-Finger Synchronized Scrolling**:
   - Single-finger/palm contact never scrolls the page, preventing accidental shifts while writing.
   - A **2-finger pan gesture** (or mouse wheel/trackpad on desktop) scrolls both the Scripture page and the Commentary page in lockstep so your notes stay aligned with their verses.
+- **Orientation-Locked Stroke Alignment (Landscape ↔ Portrait Proportional Zoom)**:
+  - Locks the two-page spread to a fixed `960px` (`2 × 480px`) canonical coordinate space so line breaks never change when rotating between Landscape and Portrait.
+  - Automatically **upscales** in Landscape (`> 960px`) and **reduces zoom** in Portrait (`< 960px`) while normalizing Apple Pencil coordinates, keeping all highlights and margin comments 100% aligned with the text.
+  - Pairs an upscaled `20px` canonical Scripture font with a strict `78%` (`0.78x`) minimum zoom floor so zoomed-out text in Portrait stays `16.0px–17.4px` (never dropping below `~15.6px`), alongside interactive zoom controls (`-`, `%`, `+`) in the page header.
 - **Daily Inspirational Verse (*Versículo do Dia*)**:
   - Collapsible card on the Home page that displays a deterministic daily verse for the current calendar day with a one-click jump to its book and chapter.
 - **Adaptive Dark & Light Studio Themes**:
