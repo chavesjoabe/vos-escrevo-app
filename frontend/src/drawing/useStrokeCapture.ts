@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { Stroke, StrokePoint, ToolType } from '../domain/stroke';
+import { ActiveTool, Stroke, StrokePoint } from '../domain/stroke';
 import { renderStrokeToSvgPath } from './strokeRenderer';
 import { findIntersectingStrokeIds } from './strokeCollision';
 
 interface UseStrokeCaptureOptions {
-  tool: ToolType | 'eraser';
+  tool: ActiveTool;
   color: string;
   strokeWidth: number;
   opacity: number;
@@ -113,7 +113,7 @@ export function useStrokeCapture({
     if (!activePathRef.current || pointsRef.current.length === 0) return;
 
     const currentOptions = optionsRef.current;
-    if (currentOptions.tool === 'eraser') return;
+    if (currentOptions.tool === 'eraser' || currentOptions.tool === 'stickyNote') return;
 
     const pathD = renderStrokeToSvgPath({
       strokeId: 'active-drawing-stroke',
@@ -144,7 +144,7 @@ export function useStrokeCapture({
 
     const onPointerDown = (event: PointerEvent) => {
       const { enabled: isEnabled, pencilOnly: isPencilOnly, tool: activeTool } = optionsRef.current;
-      if (!isEnabled) return;
+      if (!isEnabled || activeTool === 'stickyNote') return;
 
       // Palm Rejection check
       if (isPencilOnly && event.pointerType === 'touch') {
@@ -332,7 +332,7 @@ export function useStrokeCapture({
         activePathRef.current.style.display = 'none';
       }
 
-      if (finalPoints.length > 0 && currentOptions.tool !== 'eraser') {
+      if (finalPoints.length > 0 && currentOptions.tool !== 'eraser' && currentOptions.tool !== 'stickyNote') {
         const strokeId = `stroke-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const newStroke: Stroke = {
           strokeId,

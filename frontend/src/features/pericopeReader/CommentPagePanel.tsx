@@ -2,8 +2,10 @@ import React from 'react';
 import { Box, Typography, TextField, IconButton, Tooltip } from '@mui/material';
 import RemoveIcon from '@mui/icons-material/Remove';
 import AddIcon from '@mui/icons-material/Add';
-import { Stroke, ToolType } from '../../domain/stroke';
+import { ActiveTool, Stroke } from '../../domain/stroke';
+import { StickyNote } from '../../domain/pericope';
 import { CommentCanvas } from './CommentCanvas';
+import { StickyNoteLayer } from './StickyNoteLayer';
 import { monoFontFamily, scriptureFontFamily } from '../../theme/theme';
 import { useThemeMode } from '../../theme/ThemeContext';
 
@@ -195,23 +197,35 @@ export const CommentPageHeader: React.FC<CommentPageHeaderProps> = ({
 export interface CommentPagePanelProps {
   date?: string;
   strokes: Stroke[];
-  activeTool: ToolType | 'eraser';
+  stickyNotes: StickyNote[];
+  activeTool: ActiveTool;
   activeColor: string;
   activeWidth: number;
   pencilOnly?: boolean;
+  editingNoteId: string | null;
+  onSetEditingNoteId: (noteId: string | null) => void;
   onDateChange?: (date: string) => void;
   onStrokeComplete: (stroke: Stroke) => void;
   onEraseStrokes?: (strokeIds: string[]) => void;
+  onCreateNoteAt: (positionX: number, positionY: number) => void;
+  onUpdateNote: (updatedNote: StickyNote) => void;
+  onDeleteNote: (noteId: string) => void;
 }
 
 export const CommentPagePanel: React.FC<CommentPagePanelProps> = ({
   strokes,
+  stickyNotes,
   activeTool,
   activeColor,
   activeWidth,
   pencilOnly = false,
+  editingNoteId,
+  onSetEditingNoteId,
   onStrokeComplete,
   onEraseStrokes,
+  onCreateNoteAt,
+  onUpdateNote,
+  onDeleteNote,
 }) => {
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
@@ -241,6 +255,16 @@ export const CommentPagePanel: React.FC<CommentPagePanelProps> = ({
         pencilOnly={pencilOnly}
         onStrokeComplete={onStrokeComplete}
         onEraseStrokes={onEraseStrokes}
+      />
+      <StickyNoteLayer
+        stickyNotes={stickyNotes}
+        activeTool={activeTool}
+        activeColor={activeColor}
+        editingNoteId={editingNoteId}
+        onSetEditingNoteId={onSetEditingNoteId}
+        onCreateNoteAt={onCreateNoteAt}
+        onUpdateNote={onUpdateNote}
+        onDeleteNote={onDeleteNote}
       />
     </Box>
   );

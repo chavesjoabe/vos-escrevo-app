@@ -1,5 +1,5 @@
 import { Book } from '../domain/book';
-import { Pericope, CommentPage } from '../domain/pericope';
+import { Pericope, CommentPage, StickyNote } from '../domain/pericope';
 import { Stroke } from '../domain/stroke';
 import { AUTH_SESSION_STORAGE_KEY } from './httpClient';
 import { initialBooks, initialPericopes } from './mockData';
@@ -102,6 +102,7 @@ class StorageManager {
         commentPage: {
           date: today,
           strokes: [],
+          stickyNotes: [],
         },
       });
     });
@@ -155,10 +156,12 @@ class StorageManager {
         ? {
             date: userAnnotation.commentPage.date || today,
             strokes: [...userAnnotation.commentPage.strokes],
+            stickyNotes: [...(userAnnotation.commentPage.stickyNotes || [])],
           }
         : {
             date: today,
             strokes: [],
+            stickyNotes: [],
           },
     };
   }
@@ -168,6 +171,7 @@ class StorageManager {
     commentStrokes: Stroke[],
     highlightStrokes: Stroke[],
     date?: string,
+    stickyNotes?: StickyNote[],
     userId?: string
   ): Pericope {
     const basePericope = this.pericopes.get(pericopeId);
@@ -182,6 +186,10 @@ class StorageManager {
       date !== undefined
         ? date
         : existingAnnotation?.commentPage.date || new Date().toISOString().split('T')[0];
+    const resolvedStickyNotes =
+      stickyNotes !== undefined
+        ? [...stickyNotes]
+        : [...(existingAnnotation?.commentPage.stickyNotes || [])];
 
     const updatedAnnotation: StoredUserAnnotation = {
       userId: activeUserId,
@@ -190,6 +198,7 @@ class StorageManager {
       commentPage: {
         date: resolvedDate,
         strokes: [...commentStrokes],
+        stickyNotes: resolvedStickyNotes,
       },
       updatedAt: new Date().toISOString(),
     };
@@ -203,6 +212,7 @@ class StorageManager {
       commentPage: {
         date: updatedAnnotation.commentPage.date,
         strokes: [...updatedAnnotation.commentPage.strokes],
+        stickyNotes: [...(updatedAnnotation.commentPage.stickyNotes || [])],
       },
     };
   }

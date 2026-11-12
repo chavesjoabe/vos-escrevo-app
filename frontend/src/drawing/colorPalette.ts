@@ -25,6 +25,16 @@ export const markerColors = {
   orange: "#FED7AA",      // Damasco Âmbar (Muted Apricot pastel)
 };
 
+export const stickyNoteColors = {
+  yellow: "#FEF08A",      // Post-it Amarelo Clássico
+  pink: "#FBCFE8",        // Post-it Rosa Suave
+  mint: "#BBF7D0",        // Post-it Menta
+  sky: "#BAE6FD",         // Post-it Azul Céu
+  amber: "#FED7AA",       // Post-it Pêssego
+};
+
+export const defaultStickyNoteColor = stickyNoteColors.yellow;
+
 export const defaultPencilColor = pencilColors.graphite;
 export const defaultMarkerColor = markerColors.yellow;
 

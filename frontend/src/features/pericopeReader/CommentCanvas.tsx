@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Stroke, ToolType } from '../../domain/stroke';
+import { ActiveTool, Stroke } from '../../domain/stroke';
 import { useStrokeCapture } from '../../drawing/useStrokeCapture';
 import { RenderedStroke } from '../../drawing/RenderedStroke';
 
 interface CommentCanvasProps {
   strokes: Stroke[];
-  activeTool: ToolType | 'eraser';
+  activeTool: ActiveTool;
   activeColor: string;
   activeWidth: number;
   pencilOnly?: boolean;
@@ -59,7 +59,7 @@ export const CommentCanvas: React.FC<CommentCanvasProps> = ({
     color: activeColor,
     strokeWidth: activeWidth,
     opacity: activeTool === 'marker' ? 0.5 : 1.0,
-    enabled: true,
+    enabled: activeTool !== 'stickyNote',
     pencilOnly,
     svgRef,
     activePathRef,
@@ -79,7 +79,7 @@ export const CommentCanvas: React.FC<CommentCanvasProps> = ({
         left: 0,
         width: '100%',
         height: '100%',
-        pointerEvents: 'auto',
+        pointerEvents: activeTool === 'stickyNote' ? 'none' : 'auto',
         touchAction: 'none',
         zIndex: 10,
         cursor: activeTool === 'eraser' ? 'crosshair' : activeTool === 'pencil' || activeTool === 'marker' ? 'crosshair' : 'default',

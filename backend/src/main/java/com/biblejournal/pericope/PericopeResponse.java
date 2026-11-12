@@ -25,7 +25,10 @@ public record PericopeResponse(
                 : new ArrayList<>();
         CommentPage resolvedCommentPage = userAnnotation != null && userAnnotation.commentPage != null
                 ? userAnnotation.commentPage
-                : new CommentPage(LocalDate.now().toString(), new ArrayList<>());
+                : new CommentPage(LocalDate.now().toString(), new ArrayList<>(), new ArrayList<>());
+        if (resolvedCommentPage.stickyNotes == null) {
+            resolvedCommentPage.stickyNotes = new ArrayList<>();
+        }
 
         return new PericopeResponse(
                 pericope.id != null ? pericope.id.toHexString() : null,

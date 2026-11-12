@@ -1,5 +1,5 @@
 import { DailyVerse } from '../domain/dailyVerse';
-import { Pericope, PericopeSummary } from '../domain/pericope';
+import { Pericope, PericopeSummary, StickyNote } from '../domain/pericope';
 import { Stroke } from '../domain/stroke';
 import { httpClient } from './httpClient';
 import { storageManager } from './storageManager';
@@ -15,6 +15,7 @@ interface BackendPericopeResponse {
   commentPage: {
     date: string;
     strokes: Stroke[];
+    stickyNotes?: StickyNote[];
   };
 }
 
@@ -187,9 +188,10 @@ function mapPericopeResponse(response: BackendPericopeResponse): Pericope {
     order: response.orderInBook,
     verses: response.verses || [],
     highlightStrokes: response.highlightStrokes || [],
-    commentPage: response.commentPage || {
-      date: new Date().toISOString().split('T')[0],
-      strokes: [],
+    commentPage: {
+      date: response.commentPage?.date || new Date().toISOString().split('T')[0],
+      strokes: response.commentPage?.strokes || [],
+      stickyNotes: response.commentPage?.stickyNotes || [],
     },
   };
 }
@@ -228,9 +230,11 @@ export const pericopeApi = {
     pericopeId: string,
     commentStrokes: Stroke[],
     highlightStrokes: Stroke[],
-    date?: string
+    date?: string,
+    stickyNotes?: StickyNote[]
   ): Promise<Pericope> {
     const resolvedDate = date || new Date().toISOString().split('T')[0];
+    const resolvedStickyNotes = stickyNotes || [];
     try {
       await httpClient.put<BackendPericopeResponse>(
         `/pericopes/${pericopeId}/highlight-strokes`,
@@ -241,6 +245,7 @@ export const pericopeApi = {
         {
           date: resolvedDate,
           strokes: commentStrokes,
+          stickyNotes: resolvedStickyNotes,
         }
       );
       return mapPericopeResponse(updatedResponse);
@@ -249,7 +254,8 @@ export const pericopeApi = {
         pericopeId,
         commentStrokes,
         highlightStrokes,
-        resolvedDate
+        resolvedDate,
+        resolvedStickyNotes
       );
     }
   },

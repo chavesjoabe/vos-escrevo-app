@@ -232,6 +232,15 @@ class PericopeResourceTest {
                         { "positionX": 12.0, "positionY": 30.4, "pressure": 0.8 }
                       ]
                     }
+                  ],
+                  "stickyNotes": [
+                    {
+                      "noteId": "note-1",
+                      "text": "Reflexão sobre a boa terra que dá fruto.",
+                      "positionX": 48.0,
+                      "positionY": 120.0,
+                      "color": "#FEF08A"
+                    }
                   ]
                 }
                 """;
@@ -249,9 +258,44 @@ class PericopeResourceTest {
                 .body("commentPage.strokes[0].strokeId", equalTo("comment-stroke-1"))
                 .body("commentPage.strokes[0].tool", equalTo("pencil"))
                 .body("commentPage.strokes[0].color", equalTo("#1E4FD8"))
-                .body("commentPage.strokes[0].points[0].pressure", equalTo(0.8f));
+                .body("commentPage.strokes[0].points[0].pressure", equalTo(0.8f))
+                .body("commentPage.stickyNotes", hasSize(1))
+                .body("commentPage.stickyNotes[0].noteId", equalTo("note-1"))
+                .body("commentPage.stickyNotes[0].text", equalTo("Reflexão sobre a boa terra que dá fruto."))
+                .body("commentPage.stickyNotes[0].positionX", equalTo(48.0f))
+                .body("commentPage.stickyNotes[0].positionY", equalTo(120.0f))
+                .body("commentPage.stickyNotes[0].color", equalTo("#FEF08A"));
 
         verify(annotationRepository).update(existingAnnotation);
+    }
+
+    @Test
+    void shouldReturn400WhenStickyNoteExceeds280Characters() {
+        String longText = "a".repeat(281);
+        String invalidBody = """
+                {
+                  "date": "2026-08-11",
+                  "strokes": [],
+                  "stickyNotes": [
+                    {
+                      "noteId": "note-too-long",
+                      "text": "%s",
+                      "positionX": 40.0,
+                      "positionY": 80.0,
+                      "color": "#FEF08A"
+                    }
+                  ]
+                }
+                """.formatted(longText);
+
+        given()
+                .header("Authorization", bearerTokenFor(USER_A_ID, "usera@example.com", "User A"))
+                .contentType(ContentType.JSON)
+                .body(invalidBody)
+                .when()
+                .put("/pericopes/66c5f1111111111111111101/comment-page")
+                .then()
+                .statusCode(400);
     }
 
     @Test

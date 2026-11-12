@@ -1,4 +1,5 @@
 export type ToolType = 'pencil' | 'marker';
+export type ActiveTool = ToolType | 'eraser' | 'stickyNote';
 
 export interface StrokePoint {
   positionX: number;

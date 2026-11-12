@@ -15,15 +15,18 @@ import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoFixNormalIcon from '@mui/icons-material/AutoFixNormal';
+import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
+import AddIcon from '@mui/icons-material/Add';
 import GestureIcon from '@mui/icons-material/Gesture';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import { ToolType } from '../../domain/stroke';
+import { ActiveTool } from '../../domain/stroke';
 import {
   pencilColors,
   darkPencilColors,
   markerColors,
+  stickyNoteColors,
   pencilWidths,
   markerWidths,
 } from '../../drawing/colorPalette';
@@ -31,14 +34,15 @@ import { useThemeMode } from '../../theme/ThemeContext';
 import { monoFontFamily, sansFontFamily } from '../../theme/theme';
 
 interface DrawingToolbarProps {
-  activeTool: ToolType | 'eraser';
+  activeTool: ActiveTool;
   activeColor: string;
   activeWidth: number;
   pencilOnly: boolean;
-  onToolChange: (tool: ToolType | 'eraser') => void;
+  onToolChange: (tool: ActiveTool) => void;
   onColorChange: (color: string) => void;
   onWidthChange: (width: number) => void;
   onTogglePencilOnly: () => void;
+  onQuickAddStickyNote?: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
@@ -55,6 +59,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
   onColorChange,
   onWidthChange,
   onTogglePencilOnly,
+  onQuickAddStickyNote,
   onUndo,
   onRedo,
   onClear,
@@ -90,9 +95,22 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
     { label: 'Damasco Âmbar', hex: markerColors.orange },
   ];
 
-  const activeColorPalette = activeTool === 'marker'
-    ? currentMarkerColors
-    : isDark ? darkPencilColorsList : lightPencilColorsList;
+  const currentStickyNoteColors = [
+    { label: 'Post-it Amarelo', hex: stickyNoteColors.yellow },
+    { label: 'Post-it Rosa', hex: stickyNoteColors.pink },
+    { label: 'Post-it Menta', hex: stickyNoteColors.mint },
+    { label: 'Post-it Azul Céu', hex: stickyNoteColors.sky },
+    { label: 'Post-it Pêssego', hex: stickyNoteColors.amber },
+  ];
+
+  const activeColorPalette =
+    activeTool === 'marker'
+      ? currentMarkerColors
+      : activeTool === 'stickyNote'
+        ? currentStickyNoteColors
+        : isDark
+          ? darkPencilColorsList
+          : lightPencilColorsList;
 
   const widths = activeTool === 'marker' ? markerWidths : pencilWidths;
 
@@ -144,6 +162,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
           <Box display="flex" alignItems="center" gap={1}>
             {activeTool === 'pencil' && <EditIcon sx={{ color: activeColor, fontSize: 18 }} />}
             {activeTool === 'marker' && <BorderColorIcon sx={{ color: accentColor, fontSize: 18 }} />}
+            {activeTool === 'stickyNote' && <StickyNote2OutlinedIcon sx={{ color: accentColor, fontSize: 18 }} />}
             {activeTool === 'eraser' && <AutoFixNormalIcon sx={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 18 }} />}
 
             <Typography
@@ -156,7 +175,13 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                 textTransform: 'capitalize',
               }}
             >
-              {activeTool === 'pencil' ? 'Lápis' : activeTool === 'marker' ? 'Marcador' : 'Borracha'}
+              {activeTool === 'pencil'
+                ? 'Lápis'
+                : activeTool === 'marker'
+                  ? 'Marcador'
+                  : activeTool === 'stickyNote'
+                    ? 'Post-it'
+                    : 'Borracha'}
             </Typography>
 
             {activeTool !== 'eraser' && (
@@ -254,7 +279,30 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                 </IconButton>
               </Tooltip>
 
-              <Tooltip title="Borracha (Apagar traços)">
+              <Tooltip title="Post-it (Colar nota de texto até 280 caracteres)">
+                <IconButton
+                  size="small"
+                  onClick={() => onToolChange('stickyNote')}
+                  sx={{
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 1.75,
+                    backgroundColor: activeTool === 'stickyNote' ? accentBg : 'transparent',
+                    color: activeTool === 'stickyNote' ? accentColor : isDark ? '#94A3B8' : '#64748B',
+                    '&:hover': {
+                      backgroundColor: accentBg,
+                      color: accentColor,
+                    },
+                  }}
+                >
+                  <StickyNote2OutlinedIcon sx={{ fontSize: 18 }} />
+                  <Typography variant="caption" sx={{ ml: 0.5, fontWeight: 600, fontSize: '0.74rem' }}>
+                    Post-it
+                  </Typography>
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Borracha (Apagar traços ou Post-its)">
                 <IconButton
                   size="small"
                   onClick={() => onToolChange('eraser')}
@@ -319,71 +367,95 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
               <Divider orientation="vertical" flexItem sx={{ my: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0' }} />
             )}
 
-            {/* Stroke / Eraser Width Selector */}
-            <Box display="flex" alignItems="center" gap={0.35}>
-              <Tooltip title={activeTool === 'eraser' ? 'Borracha Fina' : 'Traço Fino'}>
-                <IconButton
+            {/* Stroke / Eraser Width Selector OR Quick Paste Post-it Button */}
+            {activeTool === 'stickyNote' ? (
+              <Tooltip title="Colar novo Post-it na página de comentários (ou toque direto na página)">
+                <Chip
+                  icon={<AddIcon sx={{ color: `${accentColor} !important`, fontSize: 16 }} />}
+                  label="Colar Post-it"
+                  onClick={onQuickAddStickyNote}
                   size="small"
-                  onClick={() => onWidthChange(widths.fine)}
                   sx={{
-                    p: 0.6,
-                    backgroundColor: activeWidth === widths.fine ? accentBg : 'transparent',
-                    color: activeWidth === widths.fine ? accentColor : isDark ? '#94A3B8' : '#64748B',
+                    fontFamily: monoFontFamily,
+                    backgroundColor: accentBg,
+                    color: accentColor,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.7rem',
+                    border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : 'rgba(2, 132, 199, 0.25)'}`,
+                    height: 26,
+                    '&:hover': {
+                      backgroundColor: isDark ? 'rgba(56, 189, 248, 0.2)' : 'rgba(2, 132, 199, 0.14)',
+                    },
                   }}
-                >
-                  <Box
-                    sx={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: '50%',
-                      backgroundColor: 'currentColor',
-                    }}
-                  />
-                </IconButton>
+                />
               </Tooltip>
+            ) : (
+              <Box display="flex" alignItems="center" gap={0.35}>
+                <Tooltip title={activeTool === 'eraser' ? 'Borracha Fina' : 'Traço Fino'}>
+                  <IconButton
+                    size="small"
+                    onClick={() => onWidthChange(widths.fine)}
+                    sx={{
+                      p: 0.6,
+                      backgroundColor: activeWidth === widths.fine ? accentBg : 'transparent',
+                      color: activeWidth === widths.fine ? accentColor : isDark ? '#94A3B8' : '#64748B',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        backgroundColor: 'currentColor',
+                      }}
+                    />
+                  </IconButton>
+                </Tooltip>
 
-              <Tooltip title={activeTool === 'eraser' ? 'Borracha Média' : 'Traço Médio'}>
-                <IconButton
-                  size="small"
-                  onClick={() => onWidthChange(widths.medium)}
-                  sx={{
-                    p: 0.6,
-                    backgroundColor: activeWidth === widths.medium ? accentBg : 'transparent',
-                    color: activeWidth === widths.medium ? accentColor : isDark ? '#94A3B8' : '#64748B',
-                  }}
-                >
-                  <Box
+                <Tooltip title={activeTool === 'eraser' ? 'Borracha Média' : 'Traço Médio'}>
+                  <IconButton
+                    size="small"
+                    onClick={() => onWidthChange(widths.medium)}
                     sx={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      backgroundColor: 'currentColor',
+                      p: 0.6,
+                      backgroundColor: activeWidth === widths.medium ? accentBg : 'transparent',
+                      color: activeWidth === widths.medium ? accentColor : isDark ? '#94A3B8' : '#64748B',
                     }}
-                  />
-                </IconButton>
-              </Tooltip>
+                  >
+                    <Box
+                      sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: 'currentColor',
+                      }}
+                    />
+                  </IconButton>
+                </Tooltip>
 
-              <Tooltip title={activeTool === 'eraser' ? 'Borracha Grossa' : 'Traço Grosso'}>
-                <IconButton
-                  size="small"
-                  onClick={() => onWidthChange(widths.thick)}
-                  sx={{
-                    p: 0.6,
-                    backgroundColor: activeWidth === widths.thick ? accentBg : 'transparent',
-                    color: activeWidth === widths.thick ? accentColor : isDark ? '#94A3B8' : '#64748B',
-                  }}
-                >
-                  <Box
+                <Tooltip title={activeTool === 'eraser' ? 'Borracha Grossa' : 'Traço Grosso'}>
+                  <IconButton
+                    size="small"
+                    onClick={() => onWidthChange(widths.thick)}
                     sx={{
-                      width: 15,
-                      height: 15,
-                      borderRadius: '50%',
-                      backgroundColor: 'currentColor',
+                      p: 0.6,
+                      backgroundColor: activeWidth === widths.thick ? accentBg : 'transparent',
+                      color: activeWidth === widths.thick ? accentColor : isDark ? '#94A3B8' : '#64748B',
                     }}
-                  />
-                </IconButton>
-              </Tooltip>
-            </Box>
+                  >
+                    <Box
+                      sx={{
+                        width: 15,
+                        height: 15,
+                        borderRadius: '50%',
+                        backgroundColor: 'currentColor',
+                      }}
+                    />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
 
             <Divider orientation="vertical" flexItem sx={{ my: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0' }} />
 

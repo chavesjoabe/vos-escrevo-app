@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, startTransition, useRef, useMemo } from 'react';
 import { Box, Backdrop, CircularProgress, Snackbar, Alert, Typography } from '@mui/material';
 import { Book } from '../../domain/book';
-import { Pericope, PericopeSummary } from '../../domain/pericope';
-import { Stroke, ToolType } from '../../domain/stroke';
+import { Pericope, PericopeSummary, StickyNote } from '../../domain/pericope';
+import { ActiveTool, Stroke } from '../../domain/stroke';
 import { bookApi } from '../../api/bookApi';
 import { pericopeApi } from '../../api/pericopeApi';
 import { recentBooksStorage } from '../../api/recentBooksStorage';
-import { pencilColors, darkPencilColors, defaultPencilWidth, defaultMarkerWidth, markerColors } from '../../drawing/colorPalette';
+import {
+  pencilColors,
+  darkPencilColors,
+  defaultPencilWidth,
+  defaultMarkerWidth,
+  markerColors,
+  stickyNoteColors,
+} from '../../drawing/colorPalette';
 import { PericopeNavigation } from './PericopeNavigation';
 import { PericopeTextPanel, PericopeHeader } from './PericopeTextPanel';
 import { CommentPagePanel, CommentPageHeader } from './CommentPagePanel';
+import { STICKY_NOTE_WIDTH } from './StickyNoteLayer';
 import { DrawingToolbar } from './DrawingToolbar';
 import { useThemeMode } from '../../theme/ThemeContext';
 import { monoFontFamily } from '../../theme/theme';
@@ -39,6 +47,7 @@ interface PericopeReaderPageProps {
 interface UndoHistoryState {
   commentStrokes: Stroke[];
   highlightStrokes: Stroke[];
+  stickyNotes: StickyNote[];
 }
 
 export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
@@ -55,7 +64,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
   const [loading, setLoading] = useState(true);
 
   // Drawing tool state
-  const [activeTool, setActiveTool] = useState<ToolType | 'eraser'>('pencil');
+  const [activeTool, setActiveTool] = useState<ActiveTool>('pencil');
   const [activeColor, setActiveColor] = useState<string>(isDark ? darkPencilColors.chalk : pencilColors.graphite);
   const [activeWidth, setActiveWidth] = useState<number>(defaultPencilWidth);
   const [pencilOnly, setPencilOnly] = useState<boolean>(true); // Palm Rejection enabled by default
@@ -71,9 +80,11 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     }
   }, [isDark, activeTool, activeColor]);
 
-  // Stroke data state (Left panel text strokes vs Right panel comment strokes)
+  // Stroke & Post-it data state (Left panel text strokes vs Right panel comment strokes + stickyNotes)
   const [commentStrokes, setCommentStrokes] = useState<Stroke[]>([]);
   const [highlightStrokes, setHighlightStrokes] = useState<Stroke[]>([]);
+  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [commentDate, setCommentDate] = useState<string>('');
 
   // Save & Page Transition state
@@ -242,6 +253,8 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     setCurrentPericope(pericope);
     setCommentStrokes(pericope.commentPage.strokes || []);
     setHighlightStrokes(pericope.highlightStrokes || []);
+    setStickyNotes(pericope.commentPage.stickyNotes || []);
+    setEditingNoteId(null);
     setCommentDate(pericope.commentPage.date || new Date().toISOString().split('T')[0]);
     setUndoStack([]);
     setRedoStack([]);
@@ -254,15 +267,23 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
   };
 
   // Push state to undo stack before mutation
-  const pushUndoState = useCallback((cStrokes: Stroke[], hStrokes: Stroke[]) => {
-    setUndoStack((prev) => [...prev, { commentStrokes: cStrokes, highlightStrokes: hStrokes }]);
-    setRedoStack([]);
-  }, []);
+  const pushUndoState = useCallback(
+    (cStrokes: Stroke[], hStrokes: Stroke[], sNotes: StickyNote[]) => {
+      setUndoStack((prev) => [
+        ...prev,
+        { commentStrokes: cStrokes, highlightStrokes: hStrokes, stickyNotes: sNotes },
+      ]);
+      setRedoStack([]);
+    },
+    []
+  );
 
   // Explicit Save Action
   const handleSave = useCallback(
     async (showToast = true) => {
       if (!currentPericope) return;
+
+      const sanitizedStickyNotes = stickyNotes.filter((n) => n.text.trim().length > 0);
 
       setIsSaving(true);
       try {
@@ -271,10 +292,13 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
             currentPericope.id,
             commentStrokes,
             highlightStrokes,
-            commentDate
+            commentDate,
+            sanitizedStickyNotes
           ),
           new Promise((resolve) => setTimeout(resolve, 250)),
         ]);
+        setStickyNotes(sanitizedStickyNotes);
+        setEditingNoteId(null);
         setHasUnsavedChanges(false);
         const now = new Date();
         const formattedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -290,18 +314,20 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
         setIsSaving(false);
       }
     },
-    [currentPericope, commentStrokes, highlightStrokes, commentDate]
+    [currentPericope, commentStrokes, highlightStrokes, commentDate, stickyNotes]
   );
 
   // Auto-save on page unload
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (hasUnsavedChanges && currentPericope) {
+        const sanitizedStickyNotes = stickyNotes.filter((n) => n.text.trim().length > 0);
         pericopeApi.savePericopeStrokes(
           currentPericope.id,
           commentStrokes,
           highlightStrokes,
-          commentDate
+          commentDate,
+          sanitizedStickyNotes
         );
       }
     };
@@ -310,7 +336,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [hasUnsavedChanges, currentPericope, commentStrokes, highlightStrokes, commentDate]);
+  }, [hasUnsavedChanges, currentPericope, commentStrokes, highlightStrokes, commentDate, stickyNotes]);
 
   // Multi-touch 2-finger scroll gesture tracker (supports both vertical and horizontal pan)
   useEffect(() => {
@@ -379,7 +405,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     };
   }, [loading, currentPericope?.id]);
 
-  const handleToolChange = (tool: ToolType | 'eraser') => {
+  const handleToolChange = (tool: ActiveTool) => {
     setActiveTool(tool);
     if (tool === 'pencil') {
       setActiveColor(isDark ? darkPencilColors.chalk : pencilColors.graphite);
@@ -387,46 +413,102 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     } else if (tool === 'marker') {
       setActiveColor(markerColors.yellow);
       setActiveWidth(defaultMarkerWidth);
+    } else if (tool === 'stickyNote') {
+      setActiveColor(stickyNoteColors.yellow);
     }
   };
 
   // Left Panel Stroke Completion (Bible Text Area) - wrapped in non-blocking startTransition
   const handleTextStrokeComplete = useCallback((newStroke: Stroke) => {
     startTransition(() => {
-      pushUndoState(commentStrokes, highlightStrokes);
+      pushUndoState(commentStrokes, highlightStrokes, stickyNotes);
       setHighlightStrokes((prev) => [...prev, newStroke]);
       setHasUnsavedChanges(true);
     });
-  }, [commentStrokes, highlightStrokes, pushUndoState]);
+  }, [commentStrokes, highlightStrokes, stickyNotes, pushUndoState]);
 
   // Right Panel Stroke Completion (Comment Page Area) - wrapped in non-blocking startTransition
   const handleCommentStrokeComplete = useCallback((newStroke: Stroke) => {
     startTransition(() => {
-      pushUndoState(commentStrokes, highlightStrokes);
+      pushUndoState(commentStrokes, highlightStrokes, stickyNotes);
       setCommentStrokes((prev) => [...prev, newStroke]);
       setHasUnsavedChanges(true);
     });
-  }, [commentStrokes, highlightStrokes, pushUndoState]);
+  }, [commentStrokes, highlightStrokes, stickyNotes, pushUndoState]);
 
   const handleEraseTextStrokes = useCallback((strokeIds: string[]) => {
     if (strokeIds.length === 0) return;
     const idSet = new Set(strokeIds);
     startTransition(() => {
-      pushUndoState(commentStrokes, highlightStrokes);
+      pushUndoState(commentStrokes, highlightStrokes, stickyNotes);
       setHighlightStrokes((prev) => prev.filter((s) => !idSet.has(s.strokeId)));
       setHasUnsavedChanges(true);
     });
-  }, [commentStrokes, highlightStrokes, pushUndoState]);
+  }, [commentStrokes, highlightStrokes, stickyNotes, pushUndoState]);
 
   const handleEraseCommentStrokes = useCallback((strokeIds: string[]) => {
     if (strokeIds.length === 0) return;
     const idSet = new Set(strokeIds);
     startTransition(() => {
-      pushUndoState(commentStrokes, highlightStrokes);
+      pushUndoState(commentStrokes, highlightStrokes, stickyNotes);
       setCommentStrokes((prev) => prev.filter((s) => !idSet.has(s.strokeId)));
       setHasUnsavedChanges(true);
     });
-  }, [commentStrokes, highlightStrokes, pushUndoState]);
+  }, [commentStrokes, highlightStrokes, stickyNotes, pushUndoState]);
+
+  // Sticky Note (Post-it) CRUD handlers
+  const handleCreateStickyNoteAt = useCallback(
+    (positionX: number, positionY: number) => {
+      const noteColor =
+        activeTool === 'stickyNote' && activeColor ? activeColor : stickyNoteColors.yellow;
+      const newNote: StickyNote = {
+        noteId: `note-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        text: '',
+        positionX,
+        positionY,
+        color: noteColor,
+        updatedAt: new Date().toISOString(),
+      };
+      pushUndoState(commentStrokes, highlightStrokes, stickyNotes);
+      setStickyNotes((prev) => [...prev, newNote]);
+      setEditingNoteId(newNote.noteId);
+      setHasUnsavedChanges(true);
+    },
+    [activeTool, activeColor, commentStrokes, highlightStrokes, stickyNotes, pushUndoState]
+  );
+
+  const handleQuickAddStickyNote = useCallback(() => {
+    const scrollTop = scrollContainerRef.current?.scrollTop || 0;
+    const baseCanonicalY = Math.round(scrollTop / (effectiveScale || 1)) + 36;
+    const cascadeOffset = (stickyNotes.length % 5) * 22;
+    const posX = Math.min(
+      CANONICAL_PAGE_WIDTH - STICKY_NOTE_WIDTH - 16,
+      28 + cascadeOffset
+    );
+    const posY = Math.max(16, baseCanonicalY + cascadeOffset);
+    handleCreateStickyNoteAt(posX, posY);
+  }, [effectiveScale, stickyNotes.length, handleCreateStickyNoteAt]);
+
+  const handleUpdateStickyNote = useCallback(
+    (updatedNote: StickyNote) => {
+      pushUndoState(commentStrokes, highlightStrokes, stickyNotes);
+      setStickyNotes((prev) =>
+        prev.map((note) => (note.noteId === updatedNote.noteId ? updatedNote : note))
+      );
+      setHasUnsavedChanges(true);
+    },
+    [commentStrokes, highlightStrokes, stickyNotes, pushUndoState]
+  );
+
+  const handleDeleteStickyNote = useCallback(
+    (noteId: string) => {
+      pushUndoState(commentStrokes, highlightStrokes, stickyNotes);
+      setStickyNotes((prev) => prev.filter((note) => note.noteId !== noteId));
+      setEditingNoteId((prev) => (prev === noteId ? null : prev));
+      setHasUnsavedChanges(true);
+    },
+    [commentStrokes, highlightStrokes, stickyNotes, pushUndoState]
+  );
 
   const handleDateChange = (newDate: string) => {
     setCommentDate(newDate);
@@ -441,12 +523,14 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
 
     setRedoStack((prev) => [
       ...prev,
-      { commentStrokes, highlightStrokes },
+      { commentStrokes, highlightStrokes, stickyNotes },
     ]);
 
     setUndoStack(newUndoStack);
     setCommentStrokes(previousState.commentStrokes);
     setHighlightStrokes(previousState.highlightStrokes);
+    setStickyNotes(previousState.stickyNotes || []);
+    setEditingNoteId(null);
     setHasUnsavedChanges(true);
   };
 
@@ -458,20 +542,24 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
 
     setUndoStack((prev) => [
       ...prev,
-      { commentStrokes, highlightStrokes },
+      { commentStrokes, highlightStrokes, stickyNotes },
     ]);
 
     setRedoStack(newRedoStack);
     setCommentStrokes(nextState.commentStrokes);
     setHighlightStrokes(nextState.highlightStrokes);
+    setStickyNotes(nextState.stickyNotes || []);
+    setEditingNoteId(null);
     setHasUnsavedChanges(true);
   };
 
   const handleClearPage = () => {
     if (window.confirm('Tem certeza que deseja apagar todas as anotações desta página?')) {
-      pushUndoState(commentStrokes, highlightStrokes);
+      pushUndoState(commentStrokes, highlightStrokes, stickyNotes);
       setCommentStrokes([]);
       setHighlightStrokes([]);
+      setStickyNotes([]);
+      setEditingNoteId(null);
       setHasUnsavedChanges(true);
     }
   };
@@ -512,7 +600,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
     }
   };
 
-  // Compute maximum stroke vertical reach to safeguard scroll boundaries
+  // Compute maximum stroke & Post-it vertical reach to safeguard scroll boundaries
   const maxStrokeY = useMemo(() => {
     let maxY = 0;
     for (let i = 0; i < commentStrokes.length; i++) {
@@ -527,8 +615,12 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
         if (pts[j].positionY > maxY) maxY = pts[j].positionY;
       }
     }
+    for (let i = 0; i < stickyNotes.length; i++) {
+      const noteBottom = stickyNotes[i].positionY + 180;
+      if (noteBottom > maxY) maxY = noteBottom;
+    }
     return maxY;
-  }, [commentStrokes, highlightStrokes]);
+  }, [commentStrokes, highlightStrokes, stickyNotes]);
 
   if (!currentBook || !currentPericope) {
     return (
@@ -732,13 +824,19 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
               <CommentPagePanel
                 date={commentDate}
                 strokes={commentStrokes}
+                stickyNotes={stickyNotes}
                 activeTool={activeTool}
                 activeColor={activeColor}
                 activeWidth={activeWidth}
                 pencilOnly={pencilOnly}
+                editingNoteId={editingNoteId}
+                onSetEditingNoteId={setEditingNoteId}
                 onDateChange={handleDateChange}
                 onStrokeComplete={handleCommentStrokeComplete}
                 onEraseStrokes={handleEraseCommentStrokes}
+                onCreateNoteAt={handleCreateStickyNoteAt}
+                onUpdateNote={handleUpdateStickyNote}
+                onDeleteNote={handleDeleteStickyNote}
               />
             </Box>
           </Box>
@@ -765,6 +863,7 @@ export const PericopeReaderPage: React.FC<PericopeReaderPageProps> = ({
           onColorChange={setActiveColor}
           onWidthChange={setActiveWidth}
           onTogglePencilOnly={() => setPencilOnly(!pencilOnly)}
+          onQuickAddStickyNote={handleQuickAddStickyNote}
           onUndo={handleUndo}
           onRedo={handleRedo}
           onClear={handleClearPage}

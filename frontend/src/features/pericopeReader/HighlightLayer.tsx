@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Stroke, ToolType } from '../../domain/stroke';
+import { ActiveTool, Stroke } from '../../domain/stroke';
 import { useStrokeCapture } from '../../drawing/useStrokeCapture';
 import { RenderedStroke } from '../../drawing/RenderedStroke';
 
 interface HighlightLayerProps {
   strokes: Stroke[];
-  activeTool: ToolType | 'eraser';
+  activeTool: ActiveTool;
   activeColor: string;
   activeWidth: number;
   pencilOnly?: boolean;

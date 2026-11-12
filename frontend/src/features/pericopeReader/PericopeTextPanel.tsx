@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { Pericope } from '../../domain/pericope';
-import { Stroke, ToolType } from '../../domain/stroke';
+import { ActiveTool, Stroke } from '../../domain/stroke';
 import { HighlightLayer } from './HighlightLayer';
 import { monoFontFamily, sansFontFamily, scriptureFontFamily } from '../../theme/theme';
 import { useThemeMode } from '../../theme/ThemeContext';
@@ -73,7 +73,7 @@ export const PericopeHeader: React.FC<PericopeHeaderProps> = ({ pericope }) => {
 export interface PericopeTextPanelProps {
   pericope: Pericope;
   highlightStrokes: Stroke[];
-  activeTool: ToolType | 'eraser';
+  activeTool: ActiveTool;
   activeColor: string;
   activeWidth: number;
   pencilOnly?: boolean;

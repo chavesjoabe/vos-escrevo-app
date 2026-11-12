@@ -5,9 +5,19 @@ export interface Verse {
   text: string;
 }
 
+export interface StickyNote {
+  noteId: string;
+  text: string;
+  positionX: number;
+  positionY: number;
+  color: string;
+  updatedAt?: string;
+}
+
 export interface CommentPage {
   date: string;
   strokes: Stroke[];
+  stickyNotes?: StickyNote[];
 }
 
 export interface PericopeSummary {
